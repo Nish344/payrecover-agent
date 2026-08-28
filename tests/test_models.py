@@ -8,6 +8,8 @@ from pydantic import ValidationError
 from payrecover.models import (
     ActionRequest,
     ActionType,
+    AuditEvent,
+    AuditEventType,
     Case,
     CaseStatus,
     PaymentFailure,
@@ -50,3 +52,33 @@ def test_action_request_is_frozen() -> None:
     )
     with pytest.raises(ValidationError):
         action.rationale = "mutated"  # type: ignore[misc]
+
+
+def test_audit_event_requires_known_type() -> None:
+    event = AuditEvent(
+        event_id="e1",
+        case_id="c1",
+        ts=datetime.now(UTC),
+        event_type=AuditEventType.CASE_DETECTED,
+        payload={"payment_id": "pay_x"},
+        correlation_id=None,
+    )
+    assert event.event_type == AuditEventType.CASE_DETECTED
+    with pytest.raises(ValidationError):
+        AuditEvent(
+            event_id="e2",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type="not_a_real_type",  # type: ignore[arg-type]
+        )
+
+
+def test_payment_failure_keeps_international_flag() -> None:
+    failure = PaymentFailure(
+        payment_id="pay_TVGlLnELbwZeV2",
+        amount_paise=10000,
+        method="card",
+        error_reason="international_transaction_not_allowed",
+        international=True,
+    )
+    assert failure.international is True

@@ -8,8 +8,9 @@ Built for **Razorpay AI Buildathon 2026**, Track 03 (AI Revenue Recovery).
 
 ## Status
 
-Day 1: package, settings, and Razorpay test-mode client. Policy, diagnosis, audit,
-and metrics are not drafted yet.
+Day 1 complete: test-mode ping, one real failed payment, paper audit/policy/behavior
+spec in [`docs/decisions.md`](docs/decisions.md). Policy, diagnosis, audit writer, and
+metrics code are next.
 
 ## Setup
 

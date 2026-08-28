@@ -40,6 +40,16 @@ class Outcome(StrEnum):
     WAITING = "waiting"
 
 
+class AuditEventType(StrEnum):
+    CASE_DETECTED = "case_detected"
+    DIAGNOSIS_COMPLETED = "diagnosis_completed"
+    POLICY_VERDICT = "policy_verdict"
+    ACTION_ATTEMPTED = "action_attempted"
+    ACTION_RESULT = "action_result"
+    CUSTOMER_RESPONSE = "customer_response"
+    CASE_TERMINAL = "case_terminal"
+
+
 class PaymentFailure(BaseModel):
     """Razorpay failure snapshot. No simulator ground-truth fields."""
 
@@ -56,6 +66,7 @@ class PaymentFailure(BaseModel):
     error_reason: str | None = None
     error_source: str | None = None
     error_step: str | None = None
+    international: bool | None = None
 
 
 class Case(BaseModel):
@@ -67,6 +78,7 @@ class Case(BaseModel):
     link_count: int = Field(default=0, ge=0)
     reminder_count: int = Field(default=0, ge=0)
     opted_out: bool = False
+    wait_until: datetime | None = None
     created_at: datetime
 
 
@@ -128,14 +140,14 @@ class ActionResult(BaseModel):
 
 
 class AuditEvent(BaseModel):
-    """Proposed append-only row. Human audit design may change fields."""
+    """Append-only row. Schema is locked to docs/decisions.md (Day 1)."""
 
     model_config = ConfigDict(frozen=True)
 
     event_id: str
     case_id: str
     ts: datetime
-    event_type: str
+    event_type: AuditEventType
     payload: dict[str, Any] = Field(default_factory=dict)
     correlation_id: str | None = None
 
