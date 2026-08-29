@@ -151,3 +151,17 @@ Failure-cause mix (independent of profile, assigned at seed): include
 `bank_downtime`, `incorrect_pin` / `invalid_otp`, and an ambiguous bucket with a
 generic description so the LLM path has work. Opt-out is honored exactly once and is
 terminal. Recovered = paid the payment link in test mode, never "link sent".
+
+---
+
+## 2026-08-29 (Day 2)
+
+- Decided: seed is local-only (80 synthetic failed cases in SQLite). Razorpay writes
+  happen only on `payrecover run` when policy issues a link/remind, not at seed.
+  Rejected creating 80 live orders at seed — rate limits and leftover dashboard noise.
+- Decided: batch `wait` is compressed (wait_completed flips on the wait action) so a
+  single `run` can exercise pays_after_wait without sleeping an hour.
+- Built: store, detector, actions, batchgen, customer mechanics, runner, CLI seed/run.
+  `policy.py` / `diagnosis.py` / `audit.py` / `metrics.py` are fill-in stubs.
+- Tomorrow: fill those four modules from the Day 1 spec; then `payrecover run --dry-run`
+  on the seeded batch.

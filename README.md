@@ -8,9 +8,9 @@ Built for **Razorpay AI Buildathon 2026**, Track 03 (AI Revenue Recovery).
 
 ## Status
 
-Day 1 complete: test-mode ping, one real failed payment, paper audit/policy/behavior
-spec in [`docs/decisions.md`](docs/decisions.md). Policy, diagnosis, audit writer, and
-metrics code are next.
+Day 2 plumbing: `payrecover seed` writes 80 local cases. `payrecover run` is wired
+but needs `audit.py` / `policy.py` / `diagnosis.py` / `metrics.py` filled in
+(see Day 1 spec).
 
 ## Setup
 
@@ -27,10 +27,10 @@ payrecover ping
 | Command | What it does |
 |---|---|
 | `payrecover ping` | Authenticated test-mode read; verifies keys |
-| `payrecover seed` | Synthetic batch (not wired yet) |
-| `payrecover run` | End-to-end recovery loop (not wired yet) |
-| `payrecover report` | Recovery metrics report (not wired yet) |
-| `payrecover audit <case-id>` | Audit trail for one case (not wired yet) |
+| `payrecover seed --seed 42` | Create 80 synthetic failed cases (local DB) |
+| `payrecover run [--dry-run]` | End-to-end loop (needs the four fill-in modules) |
+| `payrecover report` | Recovery metrics report (needs metrics.py) |
+| `payrecover audit <case-id>` | Audit trail for one case (needs audit.py) |
 
 ## Architecture
 

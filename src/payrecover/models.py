@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -79,6 +79,8 @@ class Case(BaseModel):
     reminder_count: int = Field(default=0, ge=0)
     opted_out: bool = False
     wait_until: datetime | None = None
+    wait_completed: bool = False
+    active_payment_link_id: str | None = None
     created_at: datetime
 
 
@@ -137,6 +139,30 @@ class ActionResult(BaseModel):
     payment_link_id: str | None = None
     error_type: str | None = None
     detail: str | None = None
+
+
+class CustomerResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    case_id: str
+    kind: Literal["paid", "ignored", "opted_out"]
+    payment_link_id: str | None = None
+
+
+class GroundTruth(BaseModel):
+    """Hidden from diagnose/policy. Simulator only."""
+
+    model_config = ConfigDict(frozen=True)
+
+    case_id: str
+    profile: str
+    pay_on_reminder: int | None = None
+
+
+class AuditSink(Protocol):
+    def append(self, event: AuditEvent) -> None: ...
+
+    def list_for_case(self, case_id: str) -> list[AuditEvent]: ...
 
 
 class AuditEvent(BaseModel):
