@@ -21,28 +21,6 @@ from payrecover.store import Store
 app = typer.Typer(name="payrecover", no_args_is_help=True, add_completion=False)
 
 _REPORTS_DIR = Path("reports")
-_FILL_IN = (
-    "Implement these from docs/decisions.md (Day 1), then re-run:\n"
-    "  src/payrecover/audit.py\n"
-    "  src/payrecover/policy.py\n"
-    "  src/payrecover/diagnosis.py\n"
-    "  src/payrecover/metrics.py"
-)
-
-
-class _SqliteAudit:
-    def __init__(self, conn: object) -> None:
-        self._conn = conn
-
-    def append(self, event: object) -> None:
-        from payrecover.audit import append
-
-        append(self._conn, event)  # type: ignore[arg-type]
-
-    def list_for_case(self, case_id: str) -> list[object]:
-        from payrecover.audit import list_for_case
-
-        return list_for_case(self._conn, case_id)  # type: ignore[arg-type, return-value]
 
 
 @app.callback()
@@ -100,7 +78,7 @@ def run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Policy + audit, no Razorpay writes"),
 ) -> None:
     """Process the batch: detect → diagnose → policy → act → simulate."""
-    from payrecover.audit import ensure_schema
+    from payrecover.audit import SqliteAudit, ensure_schema
     from payrecover.diagnosis import diagnose
     from payrecover.policy import decide
     from payrecover.runner import run_batch
@@ -110,12 +88,7 @@ def run(
     if store.case_count() == 0:
         typer.echo("No cases. Run `payrecover seed` first.", err=True)
         raise typer.Exit(code=1)
-    try:
-        ensure_schema(store.conn)
-    except NotImplementedError as exc:
-        typer.echo(str(exc), err=True)
-        typer.echo(_FILL_IN, err=True)
-        raise typer.Exit(code=1) from None
+    ensure_schema(store.conn)
     client = None if dry_run else RazorpayClient(settings)
 
     def _diagnose(case: Case) -> Diagnosis:
@@ -124,20 +97,15 @@ def run(
     def _decide(case: Case, diagnosis: Diagnosis) -> ActionRequest:
         return decide(case, diagnosis, kill_switch=settings.kill_switch)
 
-    try:
-        finished = run_batch(
-            store,
-            settings=settings,
-            audit=_SqliteAudit(store.conn),
-            diagnose=_diagnose,
-            decide=_decide,
-            client=client,
-            dry_run=dry_run,
-        )
-    except NotImplementedError as exc:
-        typer.echo(str(exc), err=True)
-        typer.echo(_FILL_IN, err=True)
-        raise typer.Exit(code=1) from None
+    finished = run_batch(
+        store,
+        settings=settings,
+        audit=SqliteAudit(store.conn),
+        diagnose=_diagnose,
+        decide=_decide,
+        client=client,
+        dry_run=dry_run,
+    )
     typer.echo(f"ok  processed {len(finished)} cases  dry_run={dry_run}")
 
 
@@ -146,21 +114,14 @@ def report(
     output_dir: Annotated[Path, typer.Option("--output-dir")] = _REPORTS_DIR,
 ) -> None:
     """Write the recovery report (markdown + JSON)."""
-    from payrecover.audit import list_for_case
+    from payrecover.audit import list_all
     from payrecover.metrics import build_report
 
     settings = _settings()
     store = Store(settings.db_path)
     cases = store.list_cases()
-    try:
-        events = []
-        for case in cases:
-            events.extend(list_for_case(store.conn, case.case_id))
-        path = build_report(cases, events, output_dir=output_dir)
-    except NotImplementedError as exc:
-        typer.echo(str(exc), err=True)
-        typer.echo(_FILL_IN, err=True)
-        raise typer.Exit(code=1) from None
+    events = list_all(store.conn)
+    path = build_report(cases, events, output_dir=output_dir)
     typer.echo(f"ok  report {path}")
 
 
@@ -171,13 +132,8 @@ def audit_cmd(case_id: str = typer.Argument(..., help="Case id, e.g. c42_00")) -
 
     settings = _settings()
     store = Store(settings.db_path)
-    try:
-        events = list_for_case(store.conn, case_id)
-        typer.echo(export_text(events))
-    except NotImplementedError as exc:
-        typer.echo(str(exc), err=True)
-        typer.echo(_FILL_IN, err=True)
-        raise typer.Exit(code=1) from None
+    events = list_for_case(store.conn, case_id)
+    typer.echo(export_text(events))
 
 
 if __name__ == "__main__":

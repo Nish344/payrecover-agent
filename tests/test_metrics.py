@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from pathlib import Path
+
+from payrecover.metrics import build_report
+from payrecover.models import (
+    AuditEvent,
+    AuditEventType,
+    Case,
+    CaseStatus,
+    PaymentFailure,
+)
+
+
+def _case(case_id: str, amount: int, status: CaseStatus) -> Case:
+    return Case(
+        case_id=case_id,
+        failure=PaymentFailure(amount_paise=amount),
+        status=status,
+        created_at=datetime.now(UTC),
+    )
+
+
+def test_link_sent_is_not_recovered(tmp_path: Path) -> None:
+    cases = [_case("c1", 10000, CaseStatus.DIAGNOSED)]
+    events = [
+        AuditEvent(
+            event_id="e1",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type=AuditEventType.ACTION_RESULT,
+            payload={"ok": True, "payment_link_id": "plink_x"},
+        )
+    ]
+    path = build_report(cases, events, output_dir=tmp_path)
+    body = (tmp_path / "report.json").read_text()
+    assert '"recovered_paise": 0' in body
+    assert "link sent is not recovered" in path.read_text()
+
+
+def test_paid_counts_once(tmp_path: Path) -> None:
+    cases = [
+        _case("c1", 10000, CaseStatus.RECOVERED),
+        _case("c2", 20000, CaseStatus.ESCALATED),
+    ]
+    events = [
+        AuditEvent(
+            event_id="e1",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type=AuditEventType.CUSTOMER_RESPONSE,
+            payload={"kind": "paid"},
+        )
+    ]
+    build_report(cases, events, output_dir=tmp_path)
+    import json
+
+    data = json.loads((tmp_path / "report.json").read_text())
+    assert data["recovered_paise"] == 10000
+    assert data["at_risk_paise"] == 30000
+    assert data["recovery_rate"] == 0.3333
+    assert data["outcomes"]["escalated"] == 1
+
+
+def test_empty_batch_rate_is_zero(tmp_path: Path) -> None:
+    build_report([], [], output_dir=tmp_path)
+    import json
+
+    data = json.loads((tmp_path / "report.json").read_text())
+    assert data["recovery_rate"] == 0.0
+    assert data["at_risk_paise"] == 0

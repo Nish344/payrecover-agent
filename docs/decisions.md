@@ -165,3 +165,13 @@ terminal. Recovered = paid the payment link in test mode, never "link sent".
   `policy.py` / `diagnosis.py` / `audit.py` / `metrics.py` are fill-in stubs.
 - Tomorrow: fill those four modules from the Day 1 spec; then `payrecover run --dry-run`
   on the seeded batch.
+
+---
+
+## 2026-08-31 (Day 3)
+
+- Built: `audit.py` (append-only SQLite + IST export), `policy.py` (first-match
+  precedence), `diagnosis.py` (reason-keyed rules + LLM fallback), `metrics.py`
+  (paid ≠ link sent).
+- `payrecover seed` → `run --dry-run` → `report` is the v1 loop.
+- Tomorrow: demo a Razorpay timeout path and freeze README for the video.

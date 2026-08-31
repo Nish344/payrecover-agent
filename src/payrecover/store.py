@@ -53,6 +53,9 @@ class Store:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.executescript(_CASES_DDL)
+        from payrecover.audit import ensure_schema
+
+        ensure_schema(self.conn)
         self.conn.commit()
 
     def close(self) -> None:
@@ -74,6 +77,9 @@ class Store:
         return int(row["n"])
 
     def wipe(self) -> None:
+        from payrecover.audit import reset_table
+
+        reset_table(self.conn)
         self.conn.execute("DELETE FROM ground_truth")
         self.conn.execute("DELETE FROM cases")
         self.conn.execute("DELETE FROM batches")
