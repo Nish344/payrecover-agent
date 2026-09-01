@@ -93,6 +93,36 @@ def test_write_timeout_is_typed(tmp_path: Path) -> None:
     )
     assert result.ok is False
     assert result.error_type == "RazorpayTimeoutError"
+    stored = store.get_case("c1")
+    assert stored is not None
+    assert stored.link_count == 0
+
+
+def test_timeout_attempt_and_result_share_correlation(tmp_path: Path) -> None:
+    from payrecover.razorpay_client import InjectedTimeoutClient
+
+    store = Store(tmp_path / "t.db")
+    audit = MemoryAudit()
+    action = ActionRequest.from_policy(
+        case_id="c1",
+        action_type=ActionType.ISSUE_LINK,
+        rationale="recover",
+        amount_paise=10000,
+    )
+    execute(
+        action,
+        case=_case(),
+        store=store,
+        audit=audit,
+        settings=make_settings(),
+        client=InjectedTimeoutClient(),  # type: ignore[arg-type]
+        dry_run=False,
+        correlation_id="corr-demo",
+    )
+    assert [event.correlation_id for event in audit.events] == ["corr-demo", "corr-demo"]
+    assert audit.events[1].payload.get("ok") is False
+    assert store.get_case("c1") is not None
+    assert store.get_case("c1").link_count == 0  # type: ignore[union-attr]
 
 
 def test_dry_run_issue_link_no_client(tmp_path: Path) -> None:

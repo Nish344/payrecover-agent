@@ -54,3 +54,39 @@ def test_seed_run_report_dry(tmp_path: Path) -> None:
     )
     recovered_again = [case for case in rerun if case.status.value == "recovered"]
     assert len(recovered_again) == len(recovered)
+
+    sample = recovered[0]
+    events_after_first = [
+        event for event in events if event.case_id == sample.case_id
+    ]
+    attempted_first = [
+        event
+        for event in events_after_first
+        if event.event_type.value == "action_attempted"
+        and event.payload.get("action_type") == "issue_link"
+    ]
+    events_after_second = [
+        event for event in list_all(store.conn) if event.case_id == sample.case_id
+    ]
+    attempted_second = [
+        event
+        for event in events_after_second
+        if event.event_type.value == "action_attempted"
+        and event.payload.get("action_type") == "issue_link"
+    ]
+    assert len(attempted_second) == len(attempted_first)
+    reloaded = store.get_case(sample.case_id)
+    assert reloaded is not None
+    assert reloaded.link_count == sample.link_count
+    assert reloaded.reminder_count == sample.reminder_count
+    customer = [
+        event
+        for event in events_after_first
+        if event.event_type.value == "customer_response"
+        and event.payload.get("kind") == "paid"
+    ]
+    attempted = [
+        event for event in events_after_first if event.event_type.value == "action_attempted"
+    ]
+    assert customer and attempted
+    assert customer[0].correlation_id in {event.correlation_id for event in attempted}

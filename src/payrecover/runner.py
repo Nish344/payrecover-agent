@@ -41,9 +41,13 @@ def run_batch(
     client: RazorpayClient | None,
     dry_run: bool = False,
     max_steps: int = 8,
+    limit: int | None = None,
 ) -> list[Case]:
     finished: list[Case] = []
-    for case in store.list_cases():
+    cases = store.list_cases()
+    if limit is not None:
+        cases = cases[:limit]
+    for case in cases:
         finished.append(
             process_case(
                 case,
@@ -94,6 +98,7 @@ def process_case(
         if current.status in _TERMINAL:
             return current
         diagnosis = diagnose(current)
+        correlation_id = uuid.uuid4().hex
         _append(
             audit,
             current.case_id,
@@ -105,6 +110,7 @@ def process_case(
                 "path": diagnosis.path.value,
                 "model": diagnosis.model,
             },
+            correlation_id=correlation_id,
         )
         action = decide(current, diagnosis)
         _append(
@@ -118,6 +124,7 @@ def process_case(
                 "reminder_count": current.reminder_count,
                 "kill_switch": settings.kill_switch,
             },
+            correlation_id=correlation_id,
         )
         current, result = execute(
             action,
@@ -127,23 +134,31 @@ def process_case(
             settings=settings,
             client=client,
             dry_run=dry_run,
+            correlation_id=correlation_id,
         )
         if result.error_type == "kill_switch":
             current = current.model_copy(update={"status": CaseStatus.STOPPED})
             store.upsert_case(current)
+        if result.error_type == "RazorpayTimeoutError":
+            return current
         truth = store.get_ground_truth(current.case_id)
         if truth is not None and result.ok:
             response = respond(current, action, truth)
+            payload: dict[str, object] = {
+                "kind": response.kind,
+                "payment_link_id": response.payment_link_id,
+            }
             _append(
                 audit,
                 current.case_id,
                 AuditEventType.CUSTOMER_RESPONSE,
-                {"kind": response.kind, "payment_link_id": response.payment_link_id},
+                payload,
+                correlation_id=correlation_id,
             )
             if response.kind == "opted_out":
                 current = current.model_copy(update={"opted_out": True})
                 store.upsert_case(current)
-            elif response.kind == "paid":
+            elif response.kind == "paid" and response.payment_link_id:
                 current = current.model_copy(update={"status": CaseStatus.RECOVERED})
                 store.upsert_case(current)
         if current.status in _TERMINAL:
@@ -152,6 +167,7 @@ def process_case(
                 current.case_id,
                 AuditEventType.CASE_TERMINAL,
                 {"outcome": _outcome(current).value},
+                correlation_id=correlation_id,
             )
             return current
     return current
@@ -168,7 +184,11 @@ def _outcome(case: Case) -> Outcome:
 
 
 def _append(
-    audit: AuditSink, case_id: str, event_type: AuditEventType, payload: dict[str, object]
+    audit: AuditSink,
+    case_id: str,
+    event_type: AuditEventType,
+    payload: dict[str, object],
+    correlation_id: str | None = None,
 ) -> None:
     audit.append(
         AuditEvent(
@@ -177,5 +197,6 @@ def _append(
             ts=datetime.now(UTC),
             event_type=event_type,
             payload=payload,
+            correlation_id=correlation_id,
         )
     )

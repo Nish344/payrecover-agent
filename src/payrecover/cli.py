@@ -76,11 +76,18 @@ def seed(
 @app.command()
 def run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Policy + audit, no Razorpay writes"),
+    limit: Annotated[
+        int | None, typer.Option("--limit", help="Process only the first N cases")
+    ] = None,
+    inject_timeout: Annotated[
+        bool, typer.Option("--inject-timeout", help="Fail writes with RazorpayTimeoutError")
+    ] = False,
 ) -> None:
     """Process the batch: detect → diagnose → policy → act → simulate."""
     from payrecover.audit import SqliteAudit, ensure_schema
     from payrecover.diagnosis import diagnose
     from payrecover.policy import decide
+    from payrecover.razorpay_client import InjectedTimeoutClient
     from payrecover.runner import run_batch
 
     settings = _settings()
@@ -89,7 +96,13 @@ def run(
         typer.echo("No cases. Run `payrecover seed` first.", err=True)
         raise typer.Exit(code=1)
     ensure_schema(store.conn)
-    client = None if dry_run else RazorpayClient(settings)
+    if inject_timeout:
+        client: object | None = InjectedTimeoutClient()
+        dry_run = False
+    elif dry_run:
+        client = None
+    else:
+        client = RazorpayClient(settings)
 
     def _diagnose(case: Case) -> Diagnosis:
         return diagnose(case, settings=settings)
@@ -103,8 +116,9 @@ def run(
         audit=SqliteAudit(store.conn),
         diagnose=_diagnose,
         decide=_decide,
-        client=client,
+        client=client,  # type: ignore[arg-type]
         dry_run=dry_run,
+        limit=limit,
     )
     typer.echo(f"ok  processed {len(finished)} cases  dry_run={dry_run}")
 

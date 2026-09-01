@@ -51,5 +51,7 @@ def test_pays_after_nth_reminder() -> None:
 def test_pays_after_wait() -> None:
     truth = GroundTruth(case_id="c1", profile="pays_after_wait")
     wait = ActionRequest.from_policy(case_id="c1", action_type=ActionType.WAIT, rationale="r")
-    assert respond(_case(), _link(), truth).kind == "ignored"
-    assert respond(_case(), wait, truth).kind == "paid"
+    assert respond(_case(wait_completed=False, active_payment_link_id=None), wait, truth).kind == (
+        "ignored"
+    )
+    assert respond(_case(wait_completed=True), _link(), truth).kind == "paid"

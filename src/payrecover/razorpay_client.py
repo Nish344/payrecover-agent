@@ -191,6 +191,19 @@ class RazorpayClient:
         raise last
 
 
+class InjectedTimeoutClient:
+    """Demo client: every write raises RazorpayTimeoutError. No network."""
+
+    def create_payment_link(self, **kwargs: Any) -> Mapping[str, Any]:
+        raise RazorpayTimeoutError("injected timeout")
+
+    def notify_payment_link(self, **kwargs: Any) -> Mapping[str, Any]:
+        raise RazorpayTimeoutError("injected timeout")
+
+    def cancel_payment_link(self, **kwargs: Any) -> Mapping[str, Any]:
+        raise RazorpayTimeoutError("injected timeout")
+
+
 def _is_transient(error: RazorpayClientError) -> bool:
     return isinstance(error, (RazorpayTimeoutError, RazorpayUnavailableError))
 

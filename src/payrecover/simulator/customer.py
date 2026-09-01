@@ -31,7 +31,7 @@ def respond(case: Case, action: ActionRequest, truth: GroundTruth) -> CustomerRe
             return CustomerResponse(case_id=case.case_id, kind="paid", payment_link_id=link_id)
         return CustomerResponse(case_id=case.case_id, kind="ignored", payment_link_id=link_id)
     if profile == "pays_after_wait":
-        if action.action_type == ActionType.WAIT:
+        if action.action_type == ActionType.ISSUE_LINK and case.wait_completed:
             return CustomerResponse(case_id=case.case_id, kind="paid", payment_link_id=link_id)
         return CustomerResponse(case_id=case.case_id, kind="ignored", payment_link_id=link_id)
     return CustomerResponse(case_id=case.case_id, kind="ignored", payment_link_id=link_id)

@@ -47,6 +47,8 @@ _RULES: dict[str, tuple[str, float, str]] = {
 }
 
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
+_ALLOWED_CAUSES = frozenset(_RULES) | {"ambiguous"}
+_TRANSIENT_CAUSES = frozenset({"bank_downtime", "issuer_unavailable"})
 
 
 def diagnose(case: Case, *, settings: Settings) -> Diagnosis:
@@ -84,7 +86,7 @@ def _try_llm(case: Case, settings: Settings) -> Diagnosis | None:
     except Exception as exc:
         logger.warning("diagnosis LLM failed: %s", exc.__class__.__name__)
         return None
-    cause = str(parsed.get("cause") or "ambiguous")
+    cause = _sanitize_cause(case, str(parsed.get("cause") or "ambiguous"))
     try:
         confidence = float(parsed.get("confidence", 0.45))
     except (TypeError, ValueError):
@@ -141,3 +143,14 @@ def _parse_llm_json(raw: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("llm json is not an object")
     return data
+
+
+def _sanitize_cause(case: Case, cause: str) -> str:
+    """LLM cannot mint a policy-relevant cause from untrusted description text."""
+    if cause not in _ALLOWED_CAUSES:
+        return "ambiguous"
+    if cause in _TRANSIENT_CAUSES and (case.failure.error_reason or "") != cause:
+        return "ambiguous"
+    if cause in _RULES and (case.failure.error_reason or "") != cause:
+        return "ambiguous"
+    return cause

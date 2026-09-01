@@ -1,4 +1,4 @@
-"""Honest batch metrics. Recovered = customer_response kind paid, not link sent."""
+"""Honest batch metrics. Recovered = paid response on a payment link, not link sent."""
 
 from __future__ import annotations
 
@@ -30,6 +30,7 @@ def build_report(cases: list[Case], events: list[AuditEvent], *, output_dir: Pat
         for event in events
         if event.event_type == AuditEventType.CUSTOMER_RESPONSE
         and event.payload.get("kind") == "paid"
+        and event.payload.get("payment_link_id")
     }
     at_risk = sum(case.failure.amount_paise for case in cases)
     recovered_cases = [case for case in cases if case.case_id in paid_ids]
@@ -46,6 +47,7 @@ def build_report(cases: list[Case], events: list[AuditEvent], *, output_dir: Pat
         case for case in cases if case.status not in _TERMINAL_OK and case.case_id not in paid_ids
     ]
     policy_stops = [case for case in cases if case.status == CaseStatus.STOPPED]
+    escalations = _escalations(cases, events)
 
     body = {
         "cases": len(cases),
@@ -55,11 +57,15 @@ def build_report(cases: list[Case], events: list[AuditEvent], *, output_dir: Pat
         "recovered_inr": paise_to_inr(recovered),
         "recovery_rate": round(rate, 4),
         "recovered_case_count": len(recovered_cases),
-        "note": "recovered counts customer_response.kind=paid only; link sent is not recovered",
+        "note": (
+            "recovered = customer_response.kind=paid AND a payment_link_id exists; "
+            "link sent is not recovered. v1 payment is simulated, not settled on Razorpay."
+        ),
         "outcomes": dict(outcomes),
         "action_counts": dict(action_counts),
         "exception_list": [_case_row(case) for case in exceptions],
         "policy_stop_list": [_case_row(case) for case in policy_stops],
+        "escalations": escalations,
     }
     json_path = output_dir / "report.json"
     json_path.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
@@ -80,6 +86,39 @@ def _outcome(case: Case, paid_ids: set[str]) -> Outcome:
     }.get(case.status, Outcome.WAITING)
 
 
+def _escalations(cases: list[Case], events: list[AuditEvent]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for case in cases:
+        if case.status != CaseStatus.ESCALATED:
+            continue
+        verdicts = [
+            event
+            for event in events
+            if event.case_id == case.case_id
+            and event.event_type == AuditEventType.POLICY_VERDICT
+            and event.payload.get("action_type") == "escalate"
+        ]
+        diagnoses = [
+            event
+            for event in events
+            if event.case_id == case.case_id
+            and event.event_type == AuditEventType.DIAGNOSIS_COMPLETED
+        ]
+        last_verdict = verdicts[-1] if verdicts else None
+        last_diag = diagnoses[-1] if diagnoses else None
+        rows.append(
+            {
+                "case_id": case.case_id,
+                "amount_inr": paise_to_inr(case.failure.amount_paise),
+                "cause": None if last_diag is None else last_diag.payload.get("cause"),
+                "rationale": (
+                    None if last_verdict is None else last_verdict.payload.get("rationale")
+                ),
+            }
+        )
+    return rows
+
+
 def _case_row(case: Case) -> dict[str, object]:
     return {
         "case_id": case.case_id,
@@ -96,6 +135,8 @@ def _markdown(body: dict[str, object]) -> str:
     assert isinstance(exceptions, list)
     stops = body["policy_stop_list"]
     assert isinstance(stops, list)
+    escalations = body["escalations"]
+    assert isinstance(escalations, list)
     actions = body["action_counts"]
     assert isinstance(actions, dict)
     lines = [
@@ -131,5 +172,15 @@ def _markdown(body: dict[str, object]) -> str:
         for row in stops:
             assert isinstance(row, dict)
             lines.append(f"- {row['case_id']}  {row['amount_inr']}  {row['status']}")
+    lines.extend(["", "## Escalations (needs human)", ""])
+    if not escalations:
+        lines.append("(none)")
+    else:
+        for row in escalations:
+            assert isinstance(row, dict)
+            lines.append(
+                f"- {row['case_id']}  {row['amount_inr']}  cause={row['cause']}  "
+                f"rationale={row['rationale']}"
+            )
     lines.append("")
     return "\n".join(lines)

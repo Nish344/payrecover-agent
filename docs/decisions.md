@@ -141,7 +141,7 @@ Shares chosen so easy payers are not a majority.
 | `pays_on_first_link` | 16 | 20% | pays | n/a | n/a |
 | `pays_after_reminder` | 14 | 18% | ignores | pays on 1st or 2nd remind | n/a |
 | `pays_if_fast` | 8 | 10% | pays only if contacted before a wait | else ignores | ignores |
-| `pays_after_wait` | 8 | 10% | ignores | ignores | pays after wait completes |
+| `pays_after_wait` | 8 | 10% | pays if `wait_completed` | ignores | ignores (wait is not a payment) |
 | `never_pays` | 18 | 22% | ignores | ignores | ignores |
 | `opts_out` | 10 | 12% | opt-out on first contact | if somehow reached, opt-out | n/a |
 | `high_value` | 6 | 8% | amount > ₹5,000; policy should escalate before a link | n/a | n/a |
@@ -175,3 +175,63 @@ terminal. Recovered = paid the payment link in test mode, never "link sent".
   (paid ≠ link sent).
 - `payrecover seed` → `run --dry-run` → `report` is the v1 loop.
 - Tomorrow: demo a Razorpay timeout path and freeze README for the video.
+
+### Day 3 review findings — fix plan (done Day 4)
+
+Full-repo review after the v1 loop landed. Ordered: honesty gaps first, then demo
+gaps, then polish. Status as of 2026-09-01:
+
+**1. "Recovered" is not yet what the docs claim it is.** — done, option (b).
+`metrics.py` counts recovered only when `customer_response.kind=paid` **and** a
+`payment_link_id` exists. README invariant 5 and `report.json` `note` say payment is
+simulated, not settled on the Razorpay rail. Day 0 wording stays as history.
+
+**2. `pays_after_wait` can be "recovered" with no link in existence.** — done.
+Profile ignores WAIT and pays on the first ISSUE_LINK after `wait_completed`.
+
+**3. The non-dry-run path has never been demoed.** — done in code.
+`payrecover run --inject-timeout --limit 1` uses `InjectedTimeoutClient` (no
+network): one `action_attempted` + failed `action_result` under the same
+`correlation_id`, `link_count` stays 0. Kill switch: executor refuses the write.
+Live `payrecover run --limit 1` (real test-mode links) is still a video step when
+keys are present.
+
+**4. `customer_response` is missing its correlation_id.** — done.
+Runner threads the step's `correlation_id` through diagnosis, verdict, execute,
+customer_response, and terminal.
+
+**5. No re-run idempotency test.** — done in `tests/test_e2e.py`.
+
+**6. Report should list escalations, not just exceptions.** — done.
+`report.md` / `report.json` have "Escalations (needs human)".
+
+**7. Prompt-injection fence is untested.** — done.
+LLM `cause` is allowlisted; `bank_downtime` / other rule causes cannot be minted
+unless `error_reason` already matches.
+
+**8. Surface the differentiators or they don't exist.** — done.
+`reports/sample/` is committed; README includes a report excerpt and an audit replay.
+
+Out of scope for v1 (parking, do not start): checkout drop-off, mandate retries,
+Hinglish voice, multi-merchant config. The bar is a finished, honest, auditable
+slice — not more surface.
+
+---
+
+## 2026-09-01 (Day 4)
+
+- Decided: recovered = simulated `paid` on a payment link, not on-rail settlement.
+  Rejected (a) (mark the Razorpay link paid) because test mode has no customer-complete
+  API we control; lying that a link is settled would be worse than disclosing the
+  simulator.
+- Decided: timeout demo is injected (`--inject-timeout`), not a real network stall —
+  deterministic for the video, same typed `RazorpayTimeoutError` path as a live timeout.
+- Built: wait-profile fix, correlated audit, escalation list, cause sanitizer,
+  `--limit` / `--inject-timeout`, sample report committed.
+- Broke: first timeout-client splice dropped `_is_transient`; restored. Metrics
+  splice briefly dropped `_case_row`; restored.
+- Learned: a `paid` event without `payment_link_id` is how a wait-profile bug becomes
+  a fake recovery; the metrics predicate has to require the link id, not just `kind`.
+- Tomorrow: live `--limit 1` on test keys if not already filmed; freeze README for
+  the video; code freeze still Sep 3.
+

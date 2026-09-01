@@ -33,13 +33,14 @@ def execute(
     settings: Settings,
     client: RazorpayClient | None,
     dry_run: bool = False,
+    correlation_id: str | None = None,
 ) -> tuple[Case, ActionResult]:
     if action.origin != "policy":
         raise ActionRefused("action was not issued by policy")
     if action.case_id != case.case_id:
         raise ActionRefused("action case_id does not match case")
 
-    correlation_id = uuid.uuid4().hex
+    correlation_id = correlation_id or uuid.uuid4().hex
     now = datetime.now(UTC)
     audit.append(
         AuditEvent(

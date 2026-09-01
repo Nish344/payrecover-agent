@@ -14,7 +14,9 @@ venv/
 
 # project data (generated)
 data/
-reports/
+reports/*
+!reports/sample/
+!reports/sample/**
 
 # editor / local notes
 .cursor/

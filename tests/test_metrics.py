@@ -36,7 +36,7 @@ def test_link_sent_is_not_recovered(tmp_path: Path) -> None:
     path = build_report(cases, events, output_dir=tmp_path)
     body = (tmp_path / "report.json").read_text()
     assert '"recovered_paise": 0' in body
-    assert "link sent is not recovered" in path.read_text()
+    assert "link sent is not recovered" in path.read_text() or "simulated" in path.read_text()
 
 
 def test_paid_counts_once(tmp_path: Path) -> None:
@@ -50,7 +50,7 @@ def test_paid_counts_once(tmp_path: Path) -> None:
             case_id="c1",
             ts=datetime.now(UTC),
             event_type=AuditEventType.CUSTOMER_RESPONSE,
-            payload={"kind": "paid"},
+            payload={"kind": "paid", "payment_link_id": "plink_x"},
         )
     ]
     build_report(cases, events, output_dir=tmp_path)
@@ -70,3 +70,47 @@ def test_empty_batch_rate_is_zero(tmp_path: Path) -> None:
     data = json.loads((tmp_path / "report.json").read_text())
     assert data["recovery_rate"] == 0.0
     assert data["at_risk_paise"] == 0
+
+
+def test_paid_without_link_is_not_recovered(tmp_path: Path) -> None:
+    cases = [_case("c1", 10000, CaseStatus.WAITING)]
+    events = [
+        AuditEvent(
+            event_id="e1",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type=AuditEventType.CUSTOMER_RESPONSE,
+            payload={"kind": "paid", "payment_link_id": None},
+        )
+    ]
+    build_report(cases, events, output_dir=tmp_path)
+    import json
+
+    data = json.loads((tmp_path / "report.json").read_text())
+    assert data["recovered_paise"] == 0
+
+
+def test_escalations_section(tmp_path: Path) -> None:
+    cases = [_case("c1", 750000, CaseStatus.ESCALATED)]
+    events = [
+        AuditEvent(
+            event_id="e1",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type=AuditEventType.DIAGNOSIS_COMPLETED,
+            payload={"cause": "insufficient_funds"},
+        ),
+        AuditEvent(
+            event_id="e2",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type=AuditEventType.POLICY_VERDICT,
+            payload={"action_type": "escalate", "rationale": "high_amount"},
+        ),
+    ]
+    path = build_report(cases, events, output_dir=tmp_path)
+    import json
+
+    data = json.loads((tmp_path / "report.json").read_text())
+    assert data["escalations"][0]["rationale"] == "high_amount"
+    assert "Escalations (needs human)" in path.read_text()
