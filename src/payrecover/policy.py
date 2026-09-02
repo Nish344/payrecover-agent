@@ -30,6 +30,12 @@ def decide(case: Case, diagnosis: Diagnosis, *, kill_switch: bool) -> ActionRequ
             action_type=ActionType.ESCALATE,
             rationale="high_amount",
         )
+    if diagnosis.cause == "ambiguous":
+        return ActionRequest.from_policy(
+            case_id=case.case_id,
+            action_type=ActionType.ESCALATE,
+            rationale="ambiguous",
+        )
     if diagnosis.confidence < MIN_CONFIDENCE:
         return ActionRequest.from_policy(
             case_id=case.case_id,

@@ -57,6 +57,12 @@ def test_low_confidence_escalates() -> None:
     assert action.rationale == "low_confidence"
 
 
+def test_ambiguous_never_reaches_an_action() -> None:
+    action = decide(_case(), _diag(confidence=0.9, cause="ambiguous"), kill_switch=False)
+    assert action.action_type == ActionType.ESCALATE
+    assert action.rationale == "ambiguous"
+
+
 def test_wait_then_link() -> None:
     waiting = decide(_case(), _diag(cause="bank_downtime"), kill_switch=False)
     assert waiting.action_type == ActionType.WAIT

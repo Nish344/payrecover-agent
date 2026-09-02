@@ -38,25 +38,25 @@
 
 ## Escalations (needs human)
 
-- c42_05  ₹1777.72  cause=ambiguous  rationale=low_confidence
-- c42_11  ₹2309.48  cause=ambiguous  rationale=low_confidence
-- c42_17  ₹926.94  cause=ambiguous  rationale=low_confidence
+- c42_05  ₹1777.72  cause=ambiguous  rationale=ambiguous
+- c42_11  ₹2309.48  cause=ambiguous  rationale=ambiguous
+- c42_17  ₹926.94  cause=ambiguous  rationale=ambiguous
 - c42_18  ₹7500.00  cause=international_transaction_not_allowed  rationale=high_amount
-- c42_23  ₹1586.82  cause=ambiguous  rationale=low_confidence
-- c42_29  ₹1785.19  cause=ambiguous  rationale=low_confidence
-- c42_35  ₹1512.89  cause=ambiguous  rationale=low_confidence
-- c42_41  ₹462.62  cause=ambiguous  rationale=low_confidence
-- c42_47  ₹500.66  cause=ambiguous  rationale=low_confidence
+- c42_23  ₹1586.82  cause=ambiguous  rationale=ambiguous
+- c42_29  ₹1785.19  cause=ambiguous  rationale=ambiguous
+- c42_35  ₹1512.89  cause=ambiguous  rationale=ambiguous
+- c42_41  ₹462.62  cause=ambiguous  rationale=ambiguous
+- c42_47  ₹500.66  cause=ambiguous  rationale=ambiguous
 - c42_52  ₹7500.00  cause=invalid_otp  rationale=high_amount
-- c42_53  ₹1206.66  cause=ambiguous  rationale=low_confidence
+- c42_53  ₹1206.66  cause=ambiguous  rationale=ambiguous
 - c42_54  ₹7500.00  cause=international_transaction_not_allowed  rationale=high_amount
 - c42_55  ₹7500.00  cause=insufficient_funds  rationale=high_amount
-- c42_59  ₹1326.96  cause=ambiguous  rationale=low_confidence
+- c42_59  ₹1326.96  cause=ambiguous  rationale=ambiguous
 - c42_62  ₹7500.00  cause=bank_downtime  rationale=high_amount
-- c42_65  ₹130.09  cause=ambiguous  rationale=low_confidence
+- c42_65  ₹130.09  cause=ambiguous  rationale=ambiguous
 - c42_68  ₹7500.00  cause=bank_downtime  rationale=high_amount
-- c42_71  ₹2114.83  cause=ambiguous  rationale=low_confidence
-- c42_77  ₹2395.99  cause=ambiguous  rationale=low_confidence
+- c42_71  ₹2114.83  cause=ambiguous  rationale=ambiguous
+- c42_77  ₹2395.99  cause=ambiguous  rationale=ambiguous
 
 ## Evaluator (hidden ground truth; agent is blind)
 

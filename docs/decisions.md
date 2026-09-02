@@ -102,8 +102,8 @@ this amount?", the verdict payload must show it equals the original order.
 
 Caps (one place in `policy.py` when implemented): max 2 links / case, max 3 reminders /
 case, link amount == original `amount_paise` (never more), opt-out is permanent,
-escalate if confidence < 0.6 **or** amount > ₹5,000 (500000 paise), `KILL_SWITCH`
-stops all execution.
+escalate if cause is `ambiguous` **or** confidence < 0.6 **or** amount > ₹5,000
+(500000 paise), `KILL_SWITCH` stops all execution.
 
 First-match precedence (top wins):
 
@@ -114,13 +114,16 @@ First-match precedence (top wins):
    (reason: already_terminal). Makes re-runs a no-op.
 4. Amount > ₹5,000 → `escalate` (high_amount). Wins over high confidence: a sure
    diagnosis on a large one-time charge still needs a human.
-5. Confidence < 0.6 → `escalate` (low_confidence).
-6. Cause is transient rail failure (`bank_downtime`, `issuer_unavailable`) and no
+5. Cause is `ambiguous` → `escalate` (ambiguous). Unclassified stays with a human;
+   a model's self-reported confidence cannot raise this ceiling. (Added Day 5 freeze;
+   Day 1 only had the 0.6 gate, which Gemini bypassed by returning 0.9 on `ambiguous`.)
+6. Confidence < 0.6 → `escalate` (low_confidence).
+7. Cause is transient rail failure (`bank_downtime`, `issuer_unavailable`) and no
    completed wait yet → `wait`.
-7. No active unpaid link and `link_count` < 2 → `issue_link` at original amount.
+8. No active unpaid link and `link_count` < 2 → `issue_link` at original amount.
    Second link only if the first is cancelled/expired/paid-failed — never two live links.
-8. Active unpaid link and `reminder_count` < 3 → `remind`.
-9. Else → `stop` (reason: exhausted).
+9. Active unpaid link and `reminder_count` < 3 → `remind`.
+10. Else → `stop` (reason: exhausted).
 
 Idempotency: counts come from already-written audit rows + case state, not from
 "intent". Re-running a case that already has a successful `issue_link` result must
@@ -257,6 +260,22 @@ slice — not more surface.
   a bad request, the trail looks like the agent does not know how to stop.
 - Tomorrow: record the video; submit. No more product surface. Code freeze Sep 3.
 
+#### Freeze evening — `ambiguous` was actionable under Gemini
+
+Gemini returns `cause: ambiguous` with `confidence: 0.9` ("I am sure I cannot
+classify this"). Policy treated 0.9 as permission to issue a link, so enabling
+the LLM made the agent *less* bounded than rules-only (0.45 → escalate).
+Committed `llm-audit.txt` for `c42_05` showed link + three reminders +
+`exhausted`; the rules-only report listed the same case as escalated. Fix:
+`cause == "ambiguous"` escalates on its own precedence rung, before the
+confidence check. Headline batch stays rules-only (seed 42, no Gemini).
+`reports/sample/llm-audit.txt` is a separate one-case Gemini run of `c42_05`
+that must now escalate.
+
+Also disclosed, not rebuilt: `seed --force` DROPs `audit_events` (triggers do
+not cover DROP); `report` scores the whole DB; detected `rzp_*` cases have no
+simulator customer and terminate `exhausted`.
+
 Diagnosis LLM provider switched from Anthropic to Gemini (free-tier key in
 `.env`, never committed). `GEMINI_API_KEY` + `LLM_MODEL=gemini-3.5-flash-lite`.
 Wait-cause sanitizer remains; non-wait classifications from the LLM are allowed
@@ -273,7 +292,8 @@ Implemented before publish:
 `run --case rzp_<payment_id>`.
 
 **A2.** Sample LLM audit: [`reports/sample/llm-audit.txt`](../reports/sample/llm-audit.txt)
-(`c42_05`, `path=llm`, `model=gemini-3.5-flash-lite`).
+(`c42_05`, `path=llm`, cause `ambiguous`, policy escalates). Separate from the
+rules-only headline batch.
 
 **A3.** Report evaluator section: capture rate vs recoverable-by-construction
 profiles. Marked as reading hidden ground truth; the agent stays blind.
@@ -302,9 +322,11 @@ implementation above. C1–C3 remain disclose-only; C4 was implemented in
 #### Submission checklist
 
 - LICENSE: MIT, repo root.
-- Video: A1 detect shot, A2 `path=llm` shot, sqlite3 `UPDATE audit_events`
-  abort, capture-rate framing from A3.
+- Video: A1 detect shot, A2 `path=llm` + escalate on `ambiguous`, sqlite3
+  `UPDATE audit_events` abort (and say `seed --force` DROPs the table),
+  capture-rate framing from A3. Film `report` before `detect`.
 - Re-verify before publishing: `.local/` untracked, `.env` untracked, no secrets
   in git, `payrecover ping` works on a fresh clone with `.env.example`.
 - Panel prep: (1) simulated-paid vs on-rail settlement, (2) kill-switch
-  permanence, (3) 31.27% is a floor — capture-rate is the better frame.
+  permanence, (3) 31.27% is a floor — capture-rate is the better frame,
+  (4) `ambiguous` escalates even when Gemini reports 0.9.

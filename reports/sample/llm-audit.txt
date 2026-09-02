@@ -1,54 +1,14 @@
-2026-09-02 13:23:29 IST  case_detected  case=c42_05
+2026-09-02 18:39:51 IST  case_detected  case=c42_05
   {"payment_id": "pay_sim_c42_05", "order_id": "order_sim_c42_05", "amount_paise": 177772, "method": "card", "error_reason": "", "error_source": "unknown", "error_step": "payment_authorization", "error_code": "BAD_REQUEST_ERROR"}
-2026-09-02 13:23:31 IST  diagnosis_completed  case=c42_05  corr=68b20e51b4b648dc9a7a9eb0f9a61d9a
-  {"cause": "ambiguous", "confidence": 0.9, "rationale": "The error description is generic ('Payment could not be completed. Please try again.') and does not provide specific failure reasons like insufficient funds, incorrect PIN, or bank downtime, making the exact cause ambiguous.", "path": "llm", "model": "gemini-3.5-flash-lite"}
-2026-09-02 13:23:31 IST  policy_verdict  case=c42_05  corr=68b20e51b4b648dc9a7a9eb0f9a61d9a
-  {"action_type": "issue_link", "rationale": "issue_link", "link_count": 0, "reminder_count": 0, "kill_switch": false}
-2026-09-02 13:23:31 IST  action_attempted  case=c42_05  corr=68b20e51b4b648dc9a7a9eb0f9a61d9a
-  {"action_type": "issue_link", "amount_paise": 177772, "payment_link_id": null, "dry_run": true}
-2026-09-02 13:23:31 IST  action_result  case=c42_05  corr=68b20e51b4b648dc9a7a9eb0f9a61d9a
-  {"ok": true, "payment_link_id": "plink_dry_c42_05_1", "error_type": null, "detail": null}
-2026-09-02 13:23:31 IST  customer_response  case=c42_05  corr=68b20e51b4b648dc9a7a9eb0f9a61d9a
-  {"kind": "ignored", "payment_link_id": "plink_dry_c42_05_1"}
-2026-09-02 13:23:33 IST  diagnosis_completed  case=c42_05  corr=897d9a5ad85245bf87ea8a06373baeee
-  {"cause": "ambiguous", "confidence": 0.9, "rationale": "The error description is generic ('Payment could not be completed. Please try again.') and does not provide specific details regarding bank downtime, incorrect credentials, or insufficient funds, making the exact cause ambiguous.", "path": "llm", "model": "gemini-3.5-flash-lite"}
-2026-09-02 13:23:33 IST  policy_verdict  case=c42_05  corr=897d9a5ad85245bf87ea8a06373baeee
-  {"action_type": "remind", "rationale": "remind", "link_count": 1, "reminder_count": 0, "kill_switch": false}
-2026-09-02 13:23:33 IST  action_attempted  case=c42_05  corr=897d9a5ad85245bf87ea8a06373baeee
-  {"action_type": "remind", "amount_paise": null, "payment_link_id": "plink_dry_c42_05_1", "dry_run": true}
-2026-09-02 13:23:33 IST  action_result  case=c42_05  corr=897d9a5ad85245bf87ea8a06373baeee
-  {"ok": true, "payment_link_id": "plink_dry_c42_05_1", "error_type": null, "detail": null}
-2026-09-02 13:23:33 IST  customer_response  case=c42_05  corr=897d9a5ad85245bf87ea8a06373baeee
-  {"kind": "ignored", "payment_link_id": "plink_dry_c42_05_1"}
-2026-09-02 13:23:34 IST  diagnosis_completed  case=c42_05  corr=0f7e4565104f49169e1b4effa0ed3e81
-  {"cause": "ambiguous", "confidence": 0.9, "rationale": "The error description is generic ('Payment could not be completed. Please try again.') and does not provide specific failure reasons like insufficient funds, incorrect PIN, or bank downtime. Therefore, the exact cause is ambiguous.", "path": "llm", "model": "gemini-3.5-flash-lite"}
-2026-09-02 13:23:34 IST  policy_verdict  case=c42_05  corr=0f7e4565104f49169e1b4effa0ed3e81
-  {"action_type": "remind", "rationale": "remind", "link_count": 1, "reminder_count": 1, "kill_switch": false}
-2026-09-02 13:23:34 IST  action_attempted  case=c42_05  corr=0f7e4565104f49169e1b4effa0ed3e81
-  {"action_type": "remind", "amount_paise": null, "payment_link_id": "plink_dry_c42_05_1", "dry_run": true}
-2026-09-02 13:23:34 IST  action_result  case=c42_05  corr=0f7e4565104f49169e1b4effa0ed3e81
-  {"ok": true, "payment_link_id": "plink_dry_c42_05_1", "error_type": null, "detail": null}
-2026-09-02 13:23:34 IST  customer_response  case=c42_05  corr=0f7e4565104f49169e1b4effa0ed3e81
-  {"kind": "ignored", "payment_link_id": "plink_dry_c42_05_1"}
-2026-09-02 13:23:35 IST  diagnosis_completed  case=c42_05  corr=6f469f2c202a4171a73649877ef0e344
+2026-09-02 18:39:53 IST  diagnosis_completed  case=c42_05  corr=f00b8dacbff9463198bd3fa830f4e507
   {"cause": "ambiguous", "confidence": 0.9, "rationale": "The error description is generic ('Payment could not be completed. Please try again.') and does not provide specific details regarding bank downtime, incorrect credentials, or insufficient funds, making the exact failure reason unclear.", "path": "llm", "model": "gemini-3.5-flash-lite"}
-2026-09-02 13:23:35 IST  policy_verdict  case=c42_05  corr=6f469f2c202a4171a73649877ef0e344
-  {"action_type": "remind", "rationale": "remind", "link_count": 1, "reminder_count": 2, "kill_switch": false}
-2026-09-02 13:23:35 IST  action_attempted  case=c42_05  corr=6f469f2c202a4171a73649877ef0e344
-  {"action_type": "remind", "amount_paise": null, "payment_link_id": "plink_dry_c42_05_1", "dry_run": true}
-2026-09-02 13:23:35 IST  action_result  case=c42_05  corr=6f469f2c202a4171a73649877ef0e344
-  {"ok": true, "payment_link_id": "plink_dry_c42_05_1", "error_type": null, "detail": null}
-2026-09-02 13:23:35 IST  customer_response  case=c42_05  corr=6f469f2c202a4171a73649877ef0e344
-  {"kind": "ignored", "payment_link_id": "plink_dry_c42_05_1"}
-2026-09-02 13:23:36 IST  diagnosis_completed  case=c42_05  corr=ccf55cd4bf514c79899aecc54d1c7448
-  {"cause": "ambiguous", "confidence": 0.9, "rationale": "The error description is generic ('Payment could not be completed. Please try again.') and the error reason and source do not provide specific failure details, making the exact cause unclear.", "path": "llm", "model": "gemini-3.5-flash-lite"}
-2026-09-02 13:23:36 IST  policy_verdict  case=c42_05  corr=ccf55cd4bf514c79899aecc54d1c7448
-  {"action_type": "stop", "rationale": "exhausted", "link_count": 1, "reminder_count": 3, "kill_switch": false}
-2026-09-02 13:23:36 IST  action_attempted  case=c42_05  corr=ccf55cd4bf514c79899aecc54d1c7448
-  {"action_type": "stop", "amount_paise": null, "payment_link_id": null, "dry_run": true}
-2026-09-02 13:23:36 IST  action_result  case=c42_05  corr=ccf55cd4bf514c79899aecc54d1c7448
+2026-09-02 18:39:53 IST  policy_verdict  case=c42_05  corr=f00b8dacbff9463198bd3fa830f4e507
+  {"action_type": "escalate", "rationale": "ambiguous", "link_count": 0, "reminder_count": 0, "kill_switch": false, "amount_paise": 177772, "payment_link_id": null}
+2026-09-02 18:39:53 IST  action_attempted  case=c42_05  corr=f00b8dacbff9463198bd3fa830f4e507
+  {"action_type": "escalate", "amount_paise": null, "payment_link_id": null, "dry_run": true}
+2026-09-02 18:39:53 IST  action_result  case=c42_05  corr=f00b8dacbff9463198bd3fa830f4e507
   {"ok": true, "payment_link_id": null, "error_type": null, "detail": null}
-2026-09-02 13:23:36 IST  customer_response  case=c42_05  corr=ccf55cd4bf514c79899aecc54d1c7448
+2026-09-02 18:39:53 IST  customer_response  case=c42_05  corr=f00b8dacbff9463198bd3fa830f4e507
   {"kind": "ignored", "payment_link_id": null}
-2026-09-02 13:23:36 IST  case_terminal  case=c42_05  corr=ccf55cd4bf514c79899aecc54d1c7448
-  {"outcome": "exhausted"}
+2026-09-02 18:39:53 IST  case_terminal  case=c42_05  corr=f00b8dacbff9463198bd3fa830f4e507
+  {"outcome": "escalated"}

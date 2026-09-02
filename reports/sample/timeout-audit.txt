@@ -1,20 +1,22 @@
-2026-09-02 09:51:34 IST  case_detected  case=c42_02
+2026-09-02 18:40:21 IST  case_detected  case=c42_02
   {"payment_id": "pay_sim_c42_02", "order_id": "order_sim_c42_02", "amount_paise": 74175, "method": "upi", "error_reason": "bank_downtime", "error_source": "issuer", "error_step": "payment_processing", "error_code": "GATEWAY_ERROR"}
-2026-09-02 09:51:34 IST  diagnosis_completed  case=c42_02  corr=dcb098249ad74f6daddcf7edd364a157
+2026-09-02 18:40:21 IST  diagnosis_completed  case=c42_02  corr=b374a1545c804475af200edfc6ddda67
   {"cause": "bank_downtime", "confidence": 0.88, "rationale": "Customer bank/rail is down; wait before nudging.", "path": "rules", "model": null}
-2026-09-02 09:51:34 IST  policy_verdict  case=c42_02  corr=dcb098249ad74f6daddcf7edd364a157
-  {"action_type": "wait", "rationale": "transient_rail", "link_count": 0, "reminder_count": 0, "kill_switch": false}
-2026-09-02 09:51:34 IST  action_attempted  case=c42_02  corr=dcb098249ad74f6daddcf7edd364a157
+2026-09-02 18:40:21 IST  policy_verdict  case=c42_02  corr=b374a1545c804475af200edfc6ddda67
+  {"action_type": "wait", "rationale": "transient_rail", "link_count": 0, "reminder_count": 0, "kill_switch": false, "amount_paise": 74175, "payment_link_id": null}
+2026-09-02 18:40:21 IST  action_attempted  case=c42_02  corr=b374a1545c804475af200edfc6ddda67
   {"action_type": "wait", "amount_paise": null, "payment_link_id": null, "dry_run": false}
-2026-09-02 09:51:34 IST  action_result  case=c42_02  corr=dcb098249ad74f6daddcf7edd364a157
+2026-09-02 18:40:21 IST  action_result  case=c42_02  corr=b374a1545c804475af200edfc6ddda67
   {"ok": true, "payment_link_id": null, "error_type": null, "detail": null}
-2026-09-02 09:51:34 IST  customer_response  case=c42_02  corr=dcb098249ad74f6daddcf7edd364a157
+2026-09-02 18:40:21 IST  customer_response  case=c42_02  corr=b374a1545c804475af200edfc6ddda67
   {"kind": "ignored", "payment_link_id": null}
-2026-09-02 09:51:34 IST  diagnosis_completed  case=c42_02  corr=e7cc6c6812854316b94997a790e5ddda
+2026-09-02 18:40:21 IST  diagnosis_completed  case=c42_02  corr=c2f52568229d4c58a8b6b07b430389e0
   {"cause": "bank_downtime", "confidence": 0.88, "rationale": "Customer bank/rail is down; wait before nudging.", "path": "rules", "model": null}
-2026-09-02 09:51:34 IST  policy_verdict  case=c42_02  corr=e7cc6c6812854316b94997a790e5ddda
-  {"action_type": "issue_link", "rationale": "issue_link", "link_count": 0, "reminder_count": 0, "kill_switch": false}
-2026-09-02 09:51:34 IST  action_attempted  case=c42_02  corr=e7cc6c6812854316b94997a790e5ddda
+2026-09-02 18:40:21 IST  policy_verdict  case=c42_02  corr=c2f52568229d4c58a8b6b07b430389e0
+  {"action_type": "issue_link", "rationale": "issue_link", "link_count": 0, "reminder_count": 0, "kill_switch": false, "amount_paise": 74175, "payment_link_id": null}
+2026-09-02 18:40:21 IST  action_attempted  case=c42_02  corr=c2f52568229d4c58a8b6b07b430389e0
   {"action_type": "issue_link", "amount_paise": 74175, "payment_link_id": null, "dry_run": false}
-2026-09-02 09:51:34 IST  action_result  case=c42_02  corr=e7cc6c6812854316b94997a790e5ddda
+2026-09-02 18:40:21 IST  action_result  case=c42_02  corr=c2f52568229d4c58a8b6b07b430389e0
   {"ok": false, "payment_link_id": null, "error_type": "RazorpayTimeoutError", "detail": "injected timeout"}
+2026-09-02 18:40:21 IST  case_terminal  case=c42_02  corr=c2f52568229d4c58a8b6b07b430389e0
+  {"outcome": "waiting", "reason": "run_released"}

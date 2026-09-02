@@ -76,19 +76,19 @@
       "case_id": "c42_05",
       "amount_inr": "\u20b91777.72",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_11",
       "amount_inr": "\u20b92309.48",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_17",
       "amount_inr": "\u20b9926.94",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_18",
@@ -100,31 +100,31 @@
       "case_id": "c42_23",
       "amount_inr": "\u20b91586.82",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_29",
       "amount_inr": "\u20b91785.19",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_35",
       "amount_inr": "\u20b91512.89",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_41",
       "amount_inr": "\u20b9462.62",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_47",
       "amount_inr": "\u20b9500.66",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_52",
@@ -136,7 +136,7 @@
       "case_id": "c42_53",
       "amount_inr": "\u20b91206.66",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_54",
@@ -154,7 +154,7 @@
       "case_id": "c42_59",
       "amount_inr": "\u20b91326.96",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_62",
@@ -166,7 +166,7 @@
       "case_id": "c42_65",
       "amount_inr": "\u20b9130.09",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_68",
@@ -178,13 +178,13 @@
       "case_id": "c42_71",
       "amount_inr": "\u20b92114.83",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     },
     {
       "case_id": "c42_77",
       "amount_inr": "\u20b92395.99",
       "cause": "ambiguous",
-      "rationale": "low_confidence"
+      "rationale": "ambiguous"
     }
   ],
   "capture": {
