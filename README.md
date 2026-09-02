@@ -12,8 +12,9 @@ checkout drop-off, mandate retries, or extra surface.
 ## Status
 
 Frozen for the pitch video. Seed 42 dry-run recovers **₹44,205.18 of ₹141,352.94**
-(31.27%, 35 of 80 cases). Recovered means a simulated customer paid a recovery
-payment link — not "link sent", and not settled on the Razorpay rail.
+(31.27%, 35 of 80 cases). Of the 46 customers who would pay given the right
+actions, **35 were captured (76.09%)**. Recovered means a simulated customer paid
+a recovery payment link — not "link sent", and not settled on the Razorpay rail.
 
 See [`docs/decisions.md`](docs/decisions.md).
 
@@ -23,8 +24,9 @@ See [`docs/decisions.md`](docs/decisions.md).
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET (test keys only)
+cp .env.example .env   # Razorpay test keys; optional GEMINI_API_KEY for LLM path
 payrecover ping
+payrecover detect      # optional: ingest real failed test-mode payments
 payrecover seed --seed 42
 payrecover run                 # dry-run (default; no Razorpay writes)
 payrecover report
@@ -36,6 +38,7 @@ payrecover audit c42_02
 | Command | What it does |
 |---|---|
 | `payrecover ping` | Authenticated test-mode read; verifies keys |
+| `payrecover detect` | Read-only ingest of failed Razorpay payments into cases |
 | `payrecover seed --seed 42` | Create 80 synthetic failed cases (local DB) |
 | `payrecover run` | Dry-run the batch (default) |
 | `payrecover run --live --case c42_06` | Real test-mode payment-link create |
@@ -45,7 +48,13 @@ payrecover audit c42_02
 | `payrecover audit <case-id>` | Audit trail for one case |
 
 `KILL_SWITCH=true payrecover run --case c42_02` records the policy verdict and
-refuses the write.
+refuses the write. That stop is **permanent**: processed cases become `stopped`
+and turning the switch off does not resume them. `--live` requires `--case` or
+`--limit` so a full batch cannot create 80 real payment links.
+
+v1 does not expire or cancel payment links, so a second recovery link is
+unreachable. Report `action_counts` scan the full audit history and accumulate
+across re-runs.
 
 ## Pitch video (5 minutes)
 
@@ -54,20 +63,27 @@ refuses the write.
 2. **One case (~90s).** `payrecover audit c42_02` — bank downtime → wait → link →
    remind → paid. Same `corr=` on the paying step. Full replay:
    [`reports/sample/audit.txt`](reports/sample/audit.txt).
-3. **Batch (~60s).** `payrecover report` — 31.27% recovered, empty exception list,
-   19 escalations (needs human). Excerpts below.
-4. **Graceful failure (~45s).** `payrecover run --inject-timeout --case c42_02` —
+   Generic-failure shot: `payrecover audit c42_05` shows `path=llm`
+   ([`reports/sample/llm-audit.txt`](reports/sample/llm-audit.txt)).
+3. **Batch (~60s).** `payrecover report` — 31.27% recovered, plus the evaluator
+   capture-rate section (hidden ground truth; the agent is blind). Excerpts below.
+4. **Detect (~20s).** `payrecover detect` — read-only ingest of a real failed
+   test-mode payment (`rzp_pay_…`), then `payrecover run --case <id>`.
+5. **Graceful failure (~45s).** `payrecover run --inject-timeout --case c42_02` —
    wait succeeds, link create fails as `RazorpayTimeoutError` under one
    correlation_id, no duplicate link.
    [`reports/sample/timeout-audit.txt`](reports/sample/timeout-audit.txt).
-5. **Kill switch (~30s).** `KILL_SWITCH=true` — verdict recorded, executor refuses.
-   Optional last shot: `payrecover run --live --case c42_06` (test-mode link create).
+6. **Kill switch (~30s).** `KILL_SWITCH=true` — verdict recorded, executor refuses.
+   Optional last shots: `payrecover run --live --case c42_06` (test-mode link
+   create); `sqlite3 data/payrecover.db "UPDATE audit_events SET case_id='x';"`
+   aborted by the append-only trigger.
 
 ## Sample report (seed 42, dry-run)
 
 Full files: [`reports/sample/report.md`](reports/sample/report.md),
 [`reports/sample/report.json`](reports/sample/report.json),
-[`reports/sample/audit.txt`](reports/sample/audit.txt) (`c42_02`).
+[`reports/sample/audit.txt`](reports/sample/audit.txt) (`c42_02`),
+[`reports/sample/llm-audit.txt`](reports/sample/llm-audit.txt) (`c42_05`, `path=llm`).
 
 ```
 # PayRecover report
@@ -94,6 +110,13 @@ Full files: [`reports/sample/report.md`](reports/sample/report.md),
 
 - c42_05  ₹1777.72  cause=ambiguous  rationale=low_confidence
 - c42_18  ₹7500.00  cause=international_transaction_not_allowed  rationale=high_amount
+
+## Evaluator (hidden ground truth; agent is blind)
+
+- Recoverable by construction: 46
+- Captured: 35 (76.09%)
+- Misses by profile: pays_if_fast 4, pays_after_wait 5, pays_after_reminder 1,
+  pays_on_first_link 1
 ```
 
 ### Audit replay (`payrecover audit c42_02`)
@@ -150,7 +173,7 @@ src/payrecover/
   audit.py             # append-only audit log
   metrics.py           # recovery rate, outcomes, exception list
   runner.py            # batch loop
-  cli.py               # payrecover seed | run | report | audit
+  cli.py               # payrecover ping | detect | seed | run | report | audit
   simulator/
     batchgen.py
     customer.py
@@ -165,12 +188,16 @@ reports/sample/
 2. Every decision is audited, including waits and stops.
 3. Caps: max 2 payment links and max 3 reminders per case; link amount equals the
    original order; opt-out is a permanent stop; escalate when confidence &lt; 0.6 or
-   amount &gt; ₹5,000; `KILL_SWITCH=true` stops all execution.
+   amount &gt; ₹5,000; `KILL_SWITCH=true` stops all execution. The kill is permanent
+   for any case the runner processes while the switch is on — flipping it off does
+   not resume those cases.
 4. Re-running a batch must not duplicate links or reminders.
 5. Recovered = simulated customer paid a recovery **payment link** (`kind=paid` and a
    `payment_link_id`). "Link sent" is not recovered. v1 does not settle the Razorpay
    link on-rail; the report states this explicitly.
 6. If the LLM is unavailable, diagnosis falls back to rules and the audit records which path ran.
+7. v1 does not expire or cancel payment links, so policy's second-link path is unreachable.
+8. Report `action_counts` accumulate across re-runs (they scan the full audit history).
 
 ## How this was built
 
@@ -182,7 +209,7 @@ and reviewed. The public repo is the product; local agent notes stay out of git.
 
 ## Tech stack
 
-Python 3.11+, official `razorpay` SDK (test mode), Anthropic API with a rule fallback,
+Python 3.11+, official `razorpay` SDK (test mode), Gemini API with a rule fallback,
 Pydantic v2, SQLite, Typer, pytest, ruff.
 
 ## Decision log

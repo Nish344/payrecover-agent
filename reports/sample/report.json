@@ -186,5 +186,39 @@
       "cause": "ambiguous",
       "rationale": "low_confidence"
     }
-  ]
+  ],
+  "capture": {
+    "note": "Evaluator-only. Reads hidden ground truth; the agent is blind. Recoverable profiles would pay given the right actions (pays_on_first_link, pays_after_reminder, pays_if_fast, pays_after_wait). never_pays / opts_out / high_value are excluded. Misses include pays_if_fast customers whose cause correctly triggered a wait.",
+    "recoverable_case_count": 46,
+    "captured_case_count": 35,
+    "capture_rate": 0.7609,
+    "by_profile": {
+      "pays_after_reminder": {
+        "recoverable": 14,
+        "captured": 13,
+        "missed": 1
+      },
+      "pays_if_fast": {
+        "recoverable": 8,
+        "captured": 4,
+        "missed": 4
+      },
+      "pays_on_first_link": {
+        "recoverable": 16,
+        "captured": 15,
+        "missed": 1
+      },
+      "pays_after_wait": {
+        "recoverable": 8,
+        "captured": 3,
+        "missed": 5
+      }
+    },
+    "misses_by_profile": {
+      "pays_after_wait": 5,
+      "pays_if_fast": 4,
+      "pays_after_reminder": 1,
+      "pays_on_first_link": 1
+    }
+  }
 }

@@ -165,13 +165,12 @@ class Store:
         row = self.conn.execute(
             "SELECT * FROM ground_truth WHERE case_id = ?", (case_id,)
         ).fetchone()
-        if row is None:
-            return None
-        return GroundTruth(
-            case_id=str(row["case_id"]),
-            profile=str(row["profile"]),
-            pay_on_reminder=row["pay_on_reminder"],
-        )
+        return None if row is None else _truth_from_row(row)
+
+    def list_ground_truths(self) -> dict[str, GroundTruth]:
+        rows = self.conn.execute("SELECT * FROM ground_truth ORDER BY case_id").fetchall()
+        truths = [_truth_from_row(row) for row in rows]
+        return {truth.case_id: truth for truth in truths}
 
 
 def _iso(value: datetime) -> str:
@@ -182,6 +181,14 @@ def _iso(value: datetime) -> str:
 
 def _parse_dt(value: str) -> datetime:
     return datetime.fromisoformat(value)
+
+
+def _truth_from_row(row: sqlite3.Row) -> GroundTruth:
+    return GroundTruth(
+        case_id=str(row["case_id"]),
+        profile=str(row["profile"]),
+        pay_on_reminder=row["pay_on_reminder"],
+    )
 
 
 def _case_from_row(row: sqlite3.Row) -> Case:

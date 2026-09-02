@@ -5,7 +5,7 @@ description = "Revenue recovery for failed Razorpay one-time payments."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic>=0.40",
+    "google-genai>=1.0",
     "pydantic>=2.7",
     "pydantic-settings>=2.4",
     "python-dotenv>=1.0",

@@ -41,7 +41,13 @@ def test_seed_run_report_dry(tmp_path: Path) -> None:
     assert len(escalated) >= 6
     events = list_all(store.conn)
     assert events
-    path = build_report(store.list_cases(), events, output_dir=tmp_path / "reports")
+    path = build_report(
+        store.list_cases(),
+        events,
+        output_dir=tmp_path / "reports",
+        truths=store.list_ground_truths(),
+    )
+    assert "agent is blind" in path.read_text()
     assert path.exists()
     rerun = run_batch(
         store,

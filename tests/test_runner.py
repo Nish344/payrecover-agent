@@ -97,11 +97,12 @@ def test_rerun_of_recovered_is_noop(tmp_path: Path) -> None:
             case_id="c1", action_type=ActionType.ISSUE_LINK, rationale="should not run"
         )
 
+    audit = MemoryAudit()
     finished = process_case(
         case,
         store=store,
         settings=make_settings(),
-        audit=MemoryAudit(),
+        audit=audit,
         diagnose=_diagnose,
         decide=decide,
         client=None,
@@ -109,6 +110,11 @@ def test_rerun_of_recovered_is_noop(tmp_path: Path) -> None:
     )
     assert finished.status == CaseStatus.RECOVERED
     assert calls["n"] == 0
+    verdicts = [event for event in audit.events if event.event_type.value == "policy_verdict"]
+    assert len(verdicts) == 1
+    assert verdicts[0].payload.get("rationale") == "already_terminal"
+    assert verdicts[0].payload.get("amount_paise") == 10000
+    assert "case_detected" not in {event.event_type.value for event in audit.events}
 
 
 def test_injected_timeout_does_not_increment_link_count(tmp_path: Path) -> None:
@@ -149,6 +155,12 @@ def test_injected_timeout_does_not_increment_link_count(tmp_path: Path) -> None:
     assert len(results) == 1
     assert attempted[0].correlation_id == results[0].correlation_id
     assert results[0].payload.get("error_type") == "RazorpayTimeoutError"
+    terminals = [event for event in audit.events if event.event_type.value == "case_terminal"]
+    assert len(terminals) == 1
+    assert terminals[0].payload.get("outcome") == "waiting"
+    assert terminals[0].payload.get("reason") == "run_released"
+    verdicts = [event for event in audit.events if event.event_type.value == "policy_verdict"]
+    assert verdicts[0].payload.get("amount_paise") == 10000
 
 
 def test_failed_api_write_does_not_retry_in_same_run(tmp_path: Path) -> None:
@@ -194,6 +206,8 @@ def test_failed_api_write_does_not_retry_in_same_run(tmp_path: Path) -> None:
     results = [event for event in audit.events if event.event_type.value == "action_result"]
     assert len(results) == 1
     assert results[0].payload.get("error_type") == "RazorpayAPIError"
+    terminals = [event for event in audit.events if event.event_type.value == "case_terminal"]
+    assert terminals[-1].payload.get("outcome") == "waiting"
 
 
 def test_limit_processes_prefix(tmp_path: Path) -> None:
@@ -278,3 +292,41 @@ def test_unknown_case_id_raises(tmp_path: Path) -> None:
             client=None,
             case_id="missing",
         )
+
+
+def test_case_detected_emitted_once_on_rerun(tmp_path: Path) -> None:
+    from payrecover.razorpay_client import InjectedTimeoutClient
+
+    store = Store(tmp_path / "t.db")
+    case = Case(
+        case_id="c1",
+        failure=PaymentFailure(amount_paise=10000, error_reason="insufficient_funds"),
+        created_at=datetime.now(UTC),
+    )
+    store.upsert_case(case)
+
+    def decide(case: Case, diagnosis: Diagnosis) -> ActionRequest:
+        _ = diagnosis
+        return ActionRequest.from_policy(
+            case_id=case.case_id,
+            action_type=ActionType.ISSUE_LINK,
+            rationale="first link",
+            amount_paise=case.failure.amount_paise,
+        )
+
+    audit = MemoryAudit()
+    kwargs = {
+        "store": store,
+        "settings": make_settings(),
+        "audit": audit,
+        "diagnose": _diagnose,
+        "decide": decide,
+        "client": InjectedTimeoutClient(),
+        "dry_run": False,
+    }
+    process_case(case, **kwargs)  # type: ignore[arg-type]
+    again = store.get_case("c1")
+    assert again is not None
+    process_case(again, **kwargs)  # type: ignore[arg-type]
+    detected = [event for event in audit.events if event.event_type.value == "case_detected"]
+    assert len(detected) == 1

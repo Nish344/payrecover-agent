@@ -18,8 +18,8 @@ class Settings(BaseSettings):
 
     razorpay_key_id: str
     razorpay_key_secret: SecretStr
-    anthropic_api_key: SecretStr = SecretStr("")
-    llm_model: str = "claude-sonnet-4-5"
+    gemini_api_key: SecretStr = SecretStr("")
+    llm_model: str = "gemini-3.5-flash-lite"
     kill_switch: bool = False
     razorpay_timeout_seconds: float = Field(default=10.0, gt=0)
     razorpay_read_retries: int = Field(default=3, ge=1, le=5)

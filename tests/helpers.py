@@ -9,7 +9,7 @@ def make_settings(**overrides: object) -> Settings:
     payload: dict[str, object] = {
         "razorpay_key_id": "rzp_test_dummykeyid",
         "razorpay_key_secret": SecretStr("test_secret"),
-        "anthropic_api_key": SecretStr(""),
+        "gemini_api_key": SecretStr(""),
         "llm_model": "test-model",
         "kill_switch": False,
         "razorpay_timeout_seconds": 0.05,

@@ -11,8 +11,18 @@ from payrecover.models import (
     AuditEventType,
     Case,
     CaseStatus,
+    GroundTruth,
     Outcome,
     paise_to_inr,
+)
+
+_RECOVERABLE_PROFILES = frozenset(
+    {
+        "pays_on_first_link",
+        "pays_after_reminder",
+        "pays_if_fast",
+        "pays_after_wait",
+    }
 )
 
 _TERMINAL_OK = {
@@ -23,7 +33,13 @@ _TERMINAL_OK = {
 }
 
 
-def build_report(cases: list[Case], events: list[AuditEvent], *, output_dir: Path) -> Path:
+def build_report(
+    cases: list[Case],
+    events: list[AuditEvent],
+    *,
+    output_dir: Path,
+    truths: dict[str, GroundTruth] | None = None,
+) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     paid_ids = {
         event.case_id
@@ -67,6 +83,8 @@ def build_report(cases: list[Case], events: list[AuditEvent], *, output_dir: Pat
         "policy_stop_list": [_case_row(case) for case in policy_stops],
         "escalations": escalations,
     }
+    if truths:
+        body["capture"] = _capture(paid_ids, truths)
     json_path = output_dir / "report.json"
     json_path.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
     md_path = output_dir / "report.md"
@@ -84,6 +102,41 @@ def _outcome(case: Case, paid_ids: set[str]) -> Outcome:
         CaseStatus.WAITING: Outcome.WAITING,
         CaseStatus.RECOVERED: Outcome.RECOVERED,
     }.get(case.status, Outcome.WAITING)
+
+
+def _capture(paid_ids: set[str], truths: dict[str, GroundTruth]) -> dict[str, object]:
+    recoverable = [
+        case_id for case_id, truth in truths.items() if truth.profile in _RECOVERABLE_PROFILES
+    ]
+    captured = [case_id for case_id in recoverable if case_id in paid_ids]
+    n_recoverable = len(recoverable)
+    n_captured = len(captured)
+    rate = (n_captured / n_recoverable) if n_recoverable else 0.0
+    by_profile: dict[str, dict[str, int]] = {}
+    misses: dict[str, int] = {}
+    for case_id in recoverable:
+        profile = truths[case_id].profile
+        row = by_profile.setdefault(profile, {"recoverable": 0, "captured": 0, "missed": 0})
+        row["recoverable"] += 1
+        if case_id in paid_ids:
+            row["captured"] += 1
+        else:
+            row["missed"] += 1
+            misses[profile] = misses.get(profile, 0) + 1
+    return {
+        "note": (
+            "Evaluator-only. Reads hidden ground truth; the agent is blind. "
+            "Recoverable profiles would pay given the right actions "
+            "(pays_on_first_link, pays_after_reminder, pays_if_fast, pays_after_wait). "
+            "never_pays / opts_out / high_value are excluded. "
+            "Misses include pays_if_fast customers whose cause correctly triggered a wait."
+        ),
+        "recoverable_case_count": n_recoverable,
+        "captured_case_count": n_captured,
+        "capture_rate": round(rate, 4),
+        "by_profile": by_profile,
+        "misses_by_profile": misses,
+    }
 
 
 def _escalations(cases: list[Case], events: list[AuditEvent]) -> list[dict[str, object]]:
@@ -182,5 +235,29 @@ def _markdown(body: dict[str, object]) -> str:
                 f"- {row['case_id']}  {row['amount_inr']}  cause={row['cause']}  "
                 f"rationale={row['rationale']}"
             )
+    capture = body.get("capture")
+    if isinstance(capture, dict):
+        lines.extend(
+            [
+                "",
+                "## Evaluator (hidden ground truth; agent is blind)",
+                "",
+                f"- Recoverable by construction: {capture['recoverable_case_count']}",
+                (
+                    f"- Captured: {capture['captured_case_count']} "
+                    f"({float(capture['capture_rate']) * 100:.2f}%)"
+                ),
+                f"- Note: {capture['note']}",
+                "",
+                "### Misses by profile",
+                "",
+            ]
+        )
+        misses = capture.get("misses_by_profile")
+        if not isinstance(misses, dict) or not misses:
+            lines.append("(none)")
+        else:
+            for profile, count in sorted(misses.items()):
+                lines.append(f"- {profile}: {count}")
     lines.append("")
     return "\n".join(lines)

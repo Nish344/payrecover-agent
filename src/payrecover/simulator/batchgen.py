@@ -65,7 +65,7 @@ _CAUSES: tuple[tuple[str, str, bool | None, str, str, str, str], ...] = (
         "Authentication failed due to incorrect otp.",
     ),
     (
-        "ambiguous",
+        "",
         "card",
         False,
         "BAD_REQUEST_ERROR",

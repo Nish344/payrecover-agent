@@ -42,6 +42,20 @@ def case_from_payment(payload: Mapping[str, Any], *, case_id: str) -> Case:
     )
 
 
+def ingest_failed_payments(store: Store, payments: list[Mapping[str, Any]]) -> list[Case]:
+    """Turn Razorpay payment objects into cases. Non-failed rows are ignored."""
+    ingested: list[Case] = []
+    for payload in payments:
+        if str(payload.get("status") or "") != "failed":
+            continue
+        payment_id = str(payload.get("id") or "").strip()
+        if not payment_id:
+            continue
+        case = case_from_payment(payload, case_id=f"rzp_{payment_id}")
+        ingested.append(upsert_detected(store, case))
+    return ingested
+
+
 def upsert_detected(store: Store, case: Case) -> Case:
     """Idempotent: same case_id keeps terminal/in-progress state on re-detect."""
     existing = store.get_case(case.case_id)

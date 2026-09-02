@@ -9,6 +9,7 @@ from payrecover.models import (
     AuditEventType,
     Case,
     CaseStatus,
+    GroundTruth,
     PaymentFailure,
 )
 
@@ -114,3 +115,36 @@ def test_escalations_section(tmp_path: Path) -> None:
     data = json.loads((tmp_path / "report.json").read_text())
     assert data["escalations"][0]["rationale"] == "high_amount"
     assert "Escalations (needs human)" in path.read_text()
+
+
+def test_capture_rate_is_evaluator_only(tmp_path: Path) -> None:
+    cases = [
+        _case("c1", 10000, CaseStatus.RECOVERED),
+        _case("c2", 20000, CaseStatus.WAITING),
+        _case("c3", 30000, CaseStatus.STOPPED),
+    ]
+    events = [
+        AuditEvent(
+            event_id="e1",
+            case_id="c1",
+            ts=datetime.now(UTC),
+            event_type=AuditEventType.CUSTOMER_RESPONSE,
+            payload={"kind": "paid", "payment_link_id": "plink_x"},
+        )
+    ]
+    truths = {
+        "c1": GroundTruth(case_id="c1", profile="pays_on_first_link"),
+        "c2": GroundTruth(case_id="c2", profile="pays_if_fast"),
+        "c3": GroundTruth(case_id="c3", profile="opts_out"),
+    }
+    path = build_report(cases, events, output_dir=tmp_path, truths=truths)
+    import json
+
+    data = json.loads((tmp_path / "report.json").read_text())
+    assert data["capture"]["recoverable_case_count"] == 2
+    assert data["capture"]["captured_case_count"] == 1
+    assert data["capture"]["capture_rate"] == 0.5
+    assert data["capture"]["misses_by_profile"] == {"pays_if_fast": 1}
+    text = path.read_text()
+    assert "agent is blind" in text
+    assert "pays_if_fast: 1" in text

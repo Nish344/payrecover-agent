@@ -57,3 +57,16 @@
 - c42_68  ₹7500.00  cause=bank_downtime  rationale=high_amount
 - c42_71  ₹2114.83  cause=ambiguous  rationale=low_confidence
 - c42_77  ₹2395.99  cause=ambiguous  rationale=low_confidence
+
+## Evaluator (hidden ground truth; agent is blind)
+
+- Recoverable by construction: 46
+- Captured: 35 (76.09%)
+- Note: Evaluator-only. Reads hidden ground truth; the agent is blind. Recoverable profiles would pay given the right actions (pays_on_first_link, pays_after_reminder, pays_if_fast, pays_after_wait). never_pays / opts_out / high_value are excluded. Misses include pays_if_fast customers whose cause correctly triggered a wait.
+
+### Misses by profile
+
+- pays_after_reminder: 1
+- pays_after_wait: 5
+- pays_if_fast: 4
+- pays_on_first_link: 1

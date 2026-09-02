@@ -42,6 +42,14 @@ def test_batch_size_and_mix(tmp_path: Path) -> None:
     assert all(case.failure.amount_paise > 500000 for case in high)
 
 
+def test_generic_failure_bucket_is_not_the_word_ambiguous(tmp_path: Path) -> None:
+    store = Store(tmp_path / "t.db")
+    seed_batch(store, seed=42)
+    generic = [case for case in store.list_cases() if not (case.failure.error_reason or "").strip()]
+    assert generic
+    assert all(case.failure.error_reason != "ambiguous" for case in store.list_cases())
+
+
 def test_seed_is_idempotent(tmp_path: Path) -> None:
     store = Store(tmp_path / "t.db")
     first = seed_batch(store, seed=1)

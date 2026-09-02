@@ -57,6 +57,34 @@ def ping() -> None:
 
 
 @app.command()
+def detect() -> None:
+    """Read failed Razorpay payments and upsert them as cases (no writes)."""
+    from payrecover.detector import ingest_failed_payments
+
+    settings = _settings()
+    try:
+        client = RazorpayClient(settings)
+        result = client.list_payments()
+    except RazorpayAuthError as exc:
+        typer.echo(f"auth failed: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+    except RazorpayClientError as exc:
+        typer.echo(f"razorpay error: {exc.__class__.__name__}: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+    items = result.get("items") or []
+    payments = [item for item in items if isinstance(item, dict)]
+    store = Store(settings.db_path)
+    ingested = ingest_failed_payments(store, payments)
+    suffix = ""
+    if ingested:
+        suffix = "  " + " ".join(case.case_id for case in ingested[:20])
+    typer.echo(
+        f"ok  detected {len(ingested)} failed payments  "
+        f"scanned={len(payments)}  db={settings.db_path}{suffix}"
+    )
+
+
+@app.command()
 def seed(
     seed: int = typer.Option(42, "--seed", help="Deterministic batch seed"),
     force: bool = typer.Option(False, "--force", help="Wipe existing cases and reseed"),
@@ -111,6 +139,9 @@ def run(
     elif dry_run:
         client = None
     else:
+        if case_id is None and limit is None:
+            typer.echo("refusing unbounded --live. Pass --case or --limit N.", err=True)
+            raise typer.Exit(code=1)
         client = RazorpayClient(settings)
         typer.echo("LIVE test-mode writes enabled", err=True)
 
@@ -149,7 +180,12 @@ def report(
     store = Store(settings.db_path)
     cases = store.list_cases()
     events = list_all(store.conn)
-    path = build_report(cases, events, output_dir=output_dir)
+    path = build_report(
+        cases,
+        events,
+        output_dir=output_dir,
+        truths=store.list_ground_truths(),
+    )
     typer.echo(f"ok  report {path}")
 
 

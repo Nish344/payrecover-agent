@@ -206,7 +206,7 @@ customer_response, and terminal.
 `report.md` / `report.json` have "Escalations (needs human)".
 
 **7. Prompt-injection fence is untested.** — done.
-LLM `cause` is allowlisted; `bank_downtime` / other rule causes cannot be minted
+LLM `cause` is allowlisted; `bank_downtime` / other wait causes cannot be minted
 unless `error_reason` already matches.
 
 **8. Surface the differentiators or they don't exist.** — done.
@@ -257,3 +257,54 @@ slice — not more surface.
   a bad request, the trail looks like the agent does not know how to stop.
 - Tomorrow: record the video; submit. No more product surface. Code freeze Sep 3.
 
+Diagnosis LLM provider switched from Anthropic to Gemini (free-tier key in
+`.env`, never committed). `GEMINI_API_KEY` + `LLM_MODEL=gemini-3.5-flash-lite`.
+Wait-cause sanitizer remains; non-wait classifications from the LLM are allowed
+on generic failures. `--live` now requires `--case` or `--limit`.
+
+### Day 5 pre-submission review — final loophole pass (done)
+
+Full re-read of code + docs + samples with a judge's eye. Findings were in three
+buckets: (A) worth building, (B) spec-vs-code mismatches, (C) disclose-only.
+Implemented before publish:
+
+**A1.** `payrecover detect` — read-only `list_payments` → `ingest_failed_payments`
+→ `upsert_detected`. Demo: detect a real failed test-mode payment, then
+`run --case rzp_<payment_id>`.
+
+**A2.** Sample LLM audit: [`reports/sample/llm-audit.txt`](../reports/sample/llm-audit.txt)
+(`c42_05`, `path=llm`, `model=gemini-3.5-flash-lite`).
+
+**A3.** Report evaluator section: capture rate vs recoverable-by-construction
+profiles. Marked as reading hidden ground truth; the agent stays blind.
+
+**A4.** `--live` requires `--case` or `--limit`.
+
+**B1.** `policy_verdict` payload includes `amount_paise` and `payment_link_id`.
+
+**B2.** Terminal re-runs emit `policy_verdict` `already_terminal` and do not call
+decide/execute.
+
+**B3.** Failed non-terminal writes and `max_steps` expiry emit
+`case_terminal` `{outcome: waiting, reason: run_released}` without flipping
+status.
+
+**B4.** `case_detected` is emitted only when the case has no prior row.
+
+**C1–C4.** Disclosed in README (kill switch is a permanent stop; second link
+unreachable; `action_counts` accumulate; generic seed bucket uses an empty
+`error_reason`, not the string `"ambiguous"`). LICENSE is MIT.
+
+Original review notes (A build / B fix / C disclose) are superseded by the
+implementation above. C1–C3 remain disclose-only; C4 was implemented in
+`batchgen`.
+
+#### Submission checklist
+
+- LICENSE: MIT, repo root.
+- Video: A1 detect shot, A2 `path=llm` shot, sqlite3 `UPDATE audit_events`
+  abort, capture-rate framing from A3.
+- Re-verify before publishing: `.local/` untracked, `.env` untracked, no secrets
+  in git, `payrecover ping` works on a fresh clone with `.env.example`.
+- Panel prep: (1) simulated-paid vs on-rail settlement, (2) kill-switch
+  permanence, (3) 31.27% is a floor — capture-rate is the better frame.

@@ -82,23 +82,39 @@ def process_case(
     max_steps: int = 8,
 ) -> Case:
     if case.status in _TERMINAL:
+        _append(
+            audit,
+            case.case_id,
+            AuditEventType.POLICY_VERDICT,
+            {
+                "action_type": "stop",
+                "rationale": "already_terminal",
+                "link_count": case.link_count,
+                "reminder_count": case.reminder_count,
+                "kill_switch": settings.kill_switch,
+                "amount_paise": case.failure.amount_paise,
+                "payment_link_id": case.active_payment_link_id,
+            },
+        )
         return case
     current = case
-    _append(
-        audit,
-        current.case_id,
-        AuditEventType.CASE_DETECTED,
-        {
-            "payment_id": current.failure.payment_id,
-            "order_id": current.failure.order_id,
-            "amount_paise": current.failure.amount_paise,
-            "method": current.failure.method,
-            "error_reason": current.failure.error_reason,
-            "error_source": current.failure.error_source,
-            "error_step": current.failure.error_step,
-            "error_code": current.failure.error_code,
-        },
-    )
+    prior = audit.list_for_case(current.case_id)
+    if not any(event.event_type == AuditEventType.CASE_DETECTED for event in prior):
+        _append(
+            audit,
+            current.case_id,
+            AuditEventType.CASE_DETECTED,
+            {
+                "payment_id": current.failure.payment_id,
+                "order_id": current.failure.order_id,
+                "amount_paise": current.failure.amount_paise,
+                "method": current.failure.method,
+                "error_reason": current.failure.error_reason,
+                "error_source": current.failure.error_source,
+                "error_step": current.failure.error_step,
+                "error_code": current.failure.error_code,
+            },
+        )
     for _ in range(max_steps):
         if current.status in _TERMINAL:
             return current
@@ -128,6 +144,12 @@ def process_case(
                 "link_count": current.link_count,
                 "reminder_count": current.reminder_count,
                 "kill_switch": settings.kill_switch,
+                "amount_paise": (
+                    action.amount_paise
+                    if action.amount_paise is not None
+                    else current.failure.amount_paise
+                ),
+                "payment_link_id": action.payment_link_id or current.active_payment_link_id,
             },
             correlation_id=correlation_id,
         )
@@ -145,6 +167,7 @@ def process_case(
             current = current.model_copy(update={"status": CaseStatus.STOPPED})
             store.upsert_case(current)
         if not result.ok and current.status not in _TERMINAL:
+            _park(audit, current, correlation_id)
             return current
         truth = store.get_ground_truth(current.case_id)
         if truth is not None and result.ok:
@@ -175,7 +198,19 @@ def process_case(
                 correlation_id=correlation_id,
             )
             return current
+    if current.status not in _TERMINAL:
+        _park(audit, current, None)
     return current
+
+
+def _park(audit: AuditSink, case: Case, correlation_id: str | None) -> None:
+    _append(
+        audit,
+        case.case_id,
+        AuditEventType.CASE_TERMINAL,
+        {"outcome": Outcome.WAITING.value, "reason": "run_released"},
+        correlation_id=correlation_id,
+    )
 
 
 def _outcome(case: Case) -> Outcome:
