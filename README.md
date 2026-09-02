@@ -6,9 +6,15 @@ audit trail and measured batch recovery.
 
 Built for **Razorpay AI Buildathon 2026**, Track 03 (AI Revenue Recovery).
 
+**v1 frozen 2026-09-02.** Code freeze is 2026-09-03. The slice is finished: no
+checkout drop-off, mandate retries, or extra surface.
+
 ## Status
 
-Day 4: honest recovered definition, wait-profile fix, correlated audit, sample report.
+Frozen for the pitch video. Seed 42 dry-run recovers **₹44,205.18 of ₹141,352.94**
+(31.27%, 35 of 80 cases). Recovered means a simulated customer paid a recovery
+payment link — not "link sent", and not settled on the Razorpay rail.
+
 See [`docs/decisions.md`](docs/decisions.md).
 
 ## Setup
@@ -17,8 +23,12 @@ See [`docs/decisions.md`](docs/decisions.md).
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # then fill RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET (test keys only)
+cp .env.example .env   # RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET (test keys only)
 payrecover ping
+payrecover seed --seed 42
+payrecover run                 # dry-run (default; no Razorpay writes)
+payrecover report
+payrecover audit c42_02
 ```
 
 ## Commands
@@ -27,15 +37,31 @@ payrecover ping
 |---|---|
 | `payrecover ping` | Authenticated test-mode read; verifies keys |
 | `payrecover seed --seed 42` | Create 80 synthetic failed cases (local DB) |
-| `payrecover run [--dry-run] [--limit N] [--inject-timeout]` | Process the batch |
+| `payrecover run` | Dry-run the batch (default) |
+| `payrecover run --live --case c42_06` | Real test-mode payment-link create |
+| `payrecover run --case c42_02` | One case |
+| `payrecover run --inject-timeout --case c42_02` | Typed write timeout, `link_count` stays 0 |
 | `payrecover report` | Recovery metrics (markdown + JSON) |
 | `payrecover audit <case-id>` | Audit trail for one case |
 
-`--dry-run` is the default path for local measurement. `--inject-timeout --limit 1`
-fails the first write with a typed `RazorpayTimeoutError` (no network): one
-`action_attempted` + failed `action_result` share a `correlation_id`, and
-`link_count` stays 0. `KILL_SWITCH=true` records the policy verdict and refuses the
-write. A live test-mode write is `payrecover run --limit 1` with keys in `.env`.
+`KILL_SWITCH=true payrecover run --case c42_02` records the policy verdict and
+refuses the write.
+
+## Pitch video (5 minutes)
+
+1. **Problem (~45s).** A failed one-time card/UPI payment cannot be silently
+   re-charged. Recovery is a bounded nudge: link, remind, wait, escalate, or stop.
+2. **One case (~90s).** `payrecover audit c42_02` — bank downtime → wait → link →
+   remind → paid. Same `corr=` on the paying step. Full replay:
+   [`reports/sample/audit.txt`](reports/sample/audit.txt).
+3. **Batch (~60s).** `payrecover report` — 31.27% recovered, empty exception list,
+   19 escalations (needs human). Excerpts below.
+4. **Graceful failure (~45s).** `payrecover run --inject-timeout --case c42_02` —
+   wait succeeds, link create fails as `RazorpayTimeoutError` under one
+   correlation_id, no duplicate link.
+   [`reports/sample/timeout-audit.txt`](reports/sample/timeout-audit.txt).
+5. **Kill switch (~30s).** `KILL_SWITCH=true` — verdict recorded, executor refuses.
+   Optional last shot: `payrecover run --live --case c42_06` (test-mode link create).
 
 ## Sample report (seed 42, dry-run)
 
@@ -130,7 +156,7 @@ src/payrecover/
     customer.py
 tests/
 docs/decisions.md
-reports/
+reports/sample/
 ```
 
 ### Invariants
@@ -145,6 +171,14 @@ reports/
    `payment_link_id`). "Link sent" is not recovered. v1 does not settle the Razorpay
    link on-rail; the report states this explicitly.
 6. If the LLM is unavailable, diagnosis falls back to rules and the audit records which path ran.
+
+## How this was built
+
+Six working days, paper-first. Policy precedence, audit schema, diagnosis keys
+(`error_reason`, not `error_code`), metrics definition, and the hidden customer
+mix were written in [`docs/decisions.md`](docs/decisions.md) before the loop was
+wired. The Razorpay client, CLI, runner, and tests were drafted with AI assistance
+and reviewed. The public repo is the product; local agent notes stay out of git.
 
 ## Tech stack
 

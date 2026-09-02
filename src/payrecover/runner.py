@@ -39,12 +39,17 @@ def run_batch(
     diagnose: DiagnoseFn,
     decide: DecideFn,
     client: RazorpayClient | None,
-    dry_run: bool = False,
+    dry_run: bool = True,
     max_steps: int = 8,
     limit: int | None = None,
+    case_id: str | None = None,
 ) -> list[Case]:
     finished: list[Case] = []
     cases = store.list_cases()
+    if case_id is not None:
+        cases = [case for case in cases if case.case_id == case_id]
+        if not cases:
+            raise LookupError(case_id)
     if limit is not None:
         cases = cases[:limit]
     for case in cases:
@@ -139,7 +144,7 @@ def process_case(
         if result.error_type == "kill_switch":
             current = current.model_copy(update={"status": CaseStatus.STOPPED})
             store.upsert_case(current)
-        if result.error_type == "RazorpayTimeoutError":
+        if not result.ok and current.status not in _TERMINAL:
             return current
         truth = store.get_ground_truth(current.case_id)
         if truth is not None and result.ok:

@@ -235,3 +235,25 @@ slice — not more surface.
 - Tomorrow: live `--limit 1` on test keys if not already filmed; freeze README for
   the video; code freeze still Sep 3.
 
+---
+
+## 2026-09-02 (Day 5 — freeze)
+
+- Decided: `payrecover run` is dry-run by default; `--live` is required for a real
+  test-mode write. A clone that types `payrecover run` must not create 80 payment
+  links. Rejected leaving `--dry-run` as an opt-in flag — the README already claimed
+  dry-run was the local path, but the CLI did the opposite.
+- Built: `--case` for the video; committed timeout audit; froze README with the
+  5-minute shot list.
+- Broke: first live `issue_link` (`c42_06`) returned `RazorpayAPIError`: "Recurring
+  digits in customer contact are disallowed" (`+919999999999`). The runner then
+  retried the same write until `max_steps`, which also hit "Too many requests".
+  Diagnosis: dummy contact rejected; failed writes were not treated like timeout
+  (leave the case open, do not loop). Fix: contact `+918765432109`; any failed
+  non-terminal execute returns immediately. `payrecover ping` succeeded
+  (payments_visible=1). Film `--live --case c42_06` for the video; do not hammer
+  the API from here.
+- Learned: a typed error in the audit is only half the demo — if the loop retries
+  a bad request, the trail looks like the agent does not know how to stop.
+- Tomorrow: record the video; submit. No more product surface. Code freeze Sep 3.
+

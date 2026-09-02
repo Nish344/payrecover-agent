@@ -158,7 +158,7 @@ def _issue_link(
                 customer={
                     "name": "PayRecover customer",
                     "email": f"{case.case_id}@payrecover.test",
-                    "contact": "+919999999999",
+                    "contact": "+918765432109",
                 },
                 reference_id=_reference_id(case.case_id, case.link_count + 1),
             )

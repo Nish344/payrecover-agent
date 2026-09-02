@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from payrecover.models import (
     ActionRequest,
     ActionType,
@@ -149,6 +151,51 @@ def test_injected_timeout_does_not_increment_link_count(tmp_path: Path) -> None:
     assert results[0].payload.get("error_type") == "RazorpayTimeoutError"
 
 
+def test_failed_api_write_does_not_retry_in_same_run(tmp_path: Path) -> None:
+    from payrecover.razorpay_client import RazorpayAPIError
+
+    store = Store(tmp_path / "t.db")
+    case = Case(
+        case_id="c1",
+        failure=PaymentFailure(amount_paise=10000, error_reason="insufficient_funds"),
+        created_at=datetime.now(UTC),
+    )
+    store.upsert_case(case)
+
+    class BoomClient:
+        calls = 0
+
+        def create_payment_link(self, **kwargs: object) -> dict[str, object]:
+            BoomClient.calls += 1
+            raise RazorpayAPIError("recurring digits", kind="bad_request")
+
+    def decide(case: Case, diagnosis: Diagnosis) -> ActionRequest:
+        _ = diagnosis
+        return ActionRequest.from_policy(
+            case_id=case.case_id,
+            action_type=ActionType.ISSUE_LINK,
+            rationale="first link",
+            amount_paise=case.failure.amount_paise,
+        )
+
+    audit = MemoryAudit()
+    finished = process_case(
+        case,
+        store=store,
+        settings=make_settings(),
+        audit=audit,
+        diagnose=_diagnose,
+        decide=decide,
+        client=BoomClient(),  # type: ignore[arg-type]
+        dry_run=False,
+    )
+    assert BoomClient.calls == 1
+    assert finished.link_count == 0
+    results = [event for event in audit.events if event.event_type.value == "action_result"]
+    assert len(results) == 1
+    assert results[0].payload.get("error_type") == "RazorpayAPIError"
+
+
 def test_limit_processes_prefix(tmp_path: Path) -> None:
     from payrecover.runner import run_batch
     from payrecover.simulator.batchgen import seed_batch
@@ -179,3 +226,55 @@ def test_limit_processes_prefix(tmp_path: Path) -> None:
     assert len(finished) == 3
     open_cases = [case for case in store.list_cases() if case.status == CaseStatus.DETECTED]
     assert len(open_cases) == 77
+
+
+def test_case_id_filters_to_one(tmp_path: Path) -> None:
+    from payrecover.runner import run_batch
+    from payrecover.simulator.batchgen import seed_batch
+
+    settings = make_settings()
+    store = Store(tmp_path / "t.db")
+    seed_batch(store, seed=42)
+    audit = MemoryAudit()
+
+    def decide(case: Case, diagnosis: Diagnosis) -> ActionRequest:
+        _ = diagnosis
+        return ActionRequest.from_policy(
+            case_id=case.case_id,
+            action_type=ActionType.STOP,
+            rationale="test stop",
+        )
+
+    finished = run_batch(
+        store,
+        settings=settings,
+        audit=audit,
+        diagnose=_diagnose,
+        decide=decide,
+        client=None,
+        dry_run=True,
+        case_id="c42_02",
+    )
+    assert [case.case_id for case in finished] == ["c42_02"]
+    still = [case for case in store.list_cases() if case.status == CaseStatus.DETECTED]
+    assert len(still) == 79
+
+
+def test_unknown_case_id_raises(tmp_path: Path) -> None:
+    from payrecover.runner import run_batch
+    from payrecover.simulator.batchgen import seed_batch
+
+    store = Store(tmp_path / "t.db")
+    seed_batch(store, seed=42)
+    with pytest.raises(LookupError):
+        run_batch(
+            store,
+            settings=make_settings(),
+            audit=MemoryAudit(),
+            diagnose=_diagnose,
+            decide=lambda case, diagnosis: ActionRequest.from_policy(
+                case_id=case.case_id, action_type=ActionType.STOP, rationale="x"
+            ),
+            client=None,
+            case_id="missing",
+        )

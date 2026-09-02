@@ -148,3 +148,35 @@ def test_dry_run_issue_link_no_client(tmp_path: Path) -> None:
     assert case.active_payment_link_id is not None
     types = [event.event_type.value for event in audit.events]
     assert types == ["action_attempted", "action_result"]
+
+
+def test_live_link_contact_is_not_repeating_nines(tmp_path: Path) -> None:
+    store = Store(tmp_path / "t.db")
+    captured: dict[str, object] = {}
+
+    class CaptureClient:
+        def create_payment_link(self, **kwargs: object) -> dict[str, object]:
+            captured.update(kwargs)
+            return {"id": "plink_live"}
+
+    action = ActionRequest.from_policy(
+        case_id="c1",
+        action_type=ActionType.ISSUE_LINK,
+        rationale="recover",
+        amount_paise=10000,
+    )
+    case, result = execute(
+        action,
+        case=_case(),
+        store=store,
+        audit=MemoryAudit(),
+        settings=make_settings(),
+        client=CaptureClient(),  # type: ignore[arg-type]
+        dry_run=False,
+    )
+    assert result.ok is True
+    customer = captured["customer"]
+    assert isinstance(customer, dict)
+    contact = str(customer["contact"])
+    assert "99999" not in contact
+    assert case.active_payment_link_id == "plink_live"

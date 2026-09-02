@@ -75,9 +75,15 @@ def seed(
 
 @app.command()
 def run(
-    dry_run: bool = typer.Option(False, "--dry-run", help="Policy + audit, no Razorpay writes"),
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run/--live", help="Dry-run (default) or real test-mode writes"),
+    ] = True,
     limit: Annotated[
         int | None, typer.Option("--limit", help="Process only the first N cases")
+    ] = None,
+    case_id: Annotated[
+        str | None, typer.Option("--case", help="Process a single case id")
     ] = None,
     inject_timeout: Annotated[
         bool, typer.Option("--inject-timeout", help="Fail writes with RazorpayTimeoutError")
@@ -95,6 +101,9 @@ def run(
     if store.case_count() == 0:
         typer.echo("No cases. Run `payrecover seed` first.", err=True)
         raise typer.Exit(code=1)
+    if case_id is not None and store.get_case(case_id) is None:
+        typer.echo(f"unknown case_id {case_id}", err=True)
+        raise typer.Exit(code=1)
     ensure_schema(store.conn)
     if inject_timeout:
         client: object | None = InjectedTimeoutClient()
@@ -103,6 +112,7 @@ def run(
         client = None
     else:
         client = RazorpayClient(settings)
+        typer.echo("LIVE test-mode writes enabled", err=True)
 
     def _diagnose(case: Case) -> Diagnosis:
         return diagnose(case, settings=settings)
@@ -119,8 +129,12 @@ def run(
         client=client,  # type: ignore[arg-type]
         dry_run=dry_run,
         limit=limit,
+        case_id=case_id,
     )
-    typer.echo(f"ok  processed {len(finished)} cases  dry_run={dry_run}")
+    suffix = ""
+    if len(finished) <= 5:
+        suffix = "  " + " ".join(case.case_id for case in finished)
+    typer.echo(f"ok  processed {len(finished)} cases  dry_run={dry_run}{suffix}")
 
 
 @app.command()
