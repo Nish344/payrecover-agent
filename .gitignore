@@ -21,3 +21,8 @@ reports/*
 # editor / local notes
 .cursor/
 .local/
+
+# local pitch / review (not for the public repo)
+docs/demo_videos/
+docs/pitch/
+review.md
